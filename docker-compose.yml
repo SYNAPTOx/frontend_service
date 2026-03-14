@@ -1,0 +1,26 @@
+services:
+
+  frontend_service:
+    build: .
+    container_name: frontend_service
+    ports:
+      - "3000:3000"
+    volumes:
+      - .:/app
+      - /app/node_modules
+    environment:
+      - HOST=0.0.0.0
+      - PORT=3000
+      - NEXT_PUBLIC_AUTH_URL=http://auth_service:8080/api/auth
+    depends_on:
+      - auth_service
+
+
+  auth_service:
+    build: ../auth_service
+    container_name: auth_service
+    ports:
+      - "8080:8080"
+    volumes:
+      - ../auth_service:/app
+      - /app/node_modules
