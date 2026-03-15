@@ -1,4 +1,6 @@
 const AUTH_URL = process.env.NEXT_PUBLIC_AUTH_URL;
+const BASE_URL = process.env.NEXT_PUBLIC_GATEWAY_URL;
+
 
 
 // ================= SIGNUP =================
@@ -25,6 +27,7 @@ export const signupUser = async (data: {
 };
 
 
+
 // ================= LOGIN =================
 
 export const loginUser = async (
@@ -47,9 +50,10 @@ export const loginUser = async (
 };
 
 
-// ================= GET ME =================
 
-export const getMe = async () => {
+// ================= AUTH ME =================
+
+export const getAuthMe = async () => {
 
   const token = localStorage.getItem("token");
 
@@ -61,6 +65,24 @@ export const getMe = async () => {
 
   return res.json();
 };
+
+
+
+// ================= USER ME (user_service) =================
+
+export const getUserMe = async () => {
+
+  const token = localStorage.getItem("token");
+
+  const res = await fetch(`${BASE_URL}/user/me`, {
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+  });
+
+  return res.json();
+};
+
 
 
 // ================= FORGOT PASSWORD =================
@@ -77,6 +99,7 @@ export const forgotPassword = async (email: string) => {
 
   return res.json();
 };
+
 
 
 // ================= RESET PASSWORD =================
@@ -101,6 +124,7 @@ export const resetPassword = async (
 };
 
 
+
 // ================= VERIFY EMAIL =================
 
 export const verifyEmail = async (token: string) => {
@@ -111,6 +135,7 @@ export const verifyEmail = async (token: string) => {
 
   return res.json();
 };
+
 
 
 // ================= GOOGLE LOGIN =================

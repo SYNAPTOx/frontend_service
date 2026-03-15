@@ -2,7 +2,7 @@
 
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { getMe } from "@/lib/api";
+import { getAuthMe, getUserMe } from "@/lib/api";
 
 export default function DashboardPage() {
 
@@ -21,14 +21,24 @@ export default function DashboardPage() {
 
       try {
 
-        const user = await getMe();
+        const auth = await getAuthMe();
 
-        if (!user || user.message) {
+        if (!auth || auth.message) {
           router.push("/login");
+          return;
         }
 
-      } catch (err) {
+        const profile = await getUserMe();
+
+        if (!profile) {
+          router.push("/profile");
+          return;
+        }
+
+      } catch {
+
         router.push("/login");
+
       }
 
     };
@@ -37,10 +47,14 @@ export default function DashboardPage() {
 
   }, []);
 
+
+
   const logout = () => {
     localStorage.removeItem("token");
     router.push("/login");
   };
+
+
 
   return (
 
@@ -60,6 +74,13 @@ export default function DashboardPage() {
             Dashboard
           </button>
 
+          <button
+            onClick={() => router.push("/profile")}
+            className="p-2 rounded-lg hover:bg-white/10"
+          >
+            Profile
+          </button>
+
           <button className="p-2 rounded-lg hover:bg-white/10">
             Section
           </button>
@@ -77,11 +98,10 @@ export default function DashboardPage() {
       </div>
 
 
+
       {/* MAIN */}
 
       <div className="flex-1 flex flex-col">
-
-        {/* TOPBAR */}
 
         <div className="h-16 border-b border-white/10 flex items-center justify-between px-6">
 
@@ -99,42 +119,10 @@ export default function DashboardPage() {
         </div>
 
 
-        {/* CONTENT */}
 
         <div className="p-6">
 
-          <div className="grid grid-cols-3 gap-6">
-
-            <div className="bg-white/10 border border-white/20 p-6 rounded-xl shadow-xl">
-              <h3 className="text-lg font-bold">
-                Section
-              </h3>
-              <p className="text-gray-400">
-                Manage your class section
-              </p>
-            </div>
-
-
-            <div className="bg-white/10 border border-white/20 p-6 rounded-xl shadow-xl">
-              <h3 className="text-lg font-bold">
-                Chat
-              </h3>
-              <p className="text-gray-400">
-                Talk with classmates
-              </p>
-            </div>
-
-
-            <div className="bg-white/10 border border-white/20 p-6 rounded-xl shadow-xl">
-              <h3 className="text-lg font-bold">
-                Attendance
-              </h3>
-              <p className="text-gray-400">
-                Track attendance
-              </p>
-            </div>
-
-          </div>
+          Dashboard working with microservices
 
         </div>
 
