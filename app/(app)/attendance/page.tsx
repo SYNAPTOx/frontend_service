@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 import {
   getAttendanceStats, getBunkBudget, getAttendancePrediction,
-  getMassBunkPolls, logAttendance, voteMassBunk
+  getMassBunkPolls, logAttendance, voteMassBunk, getTimetable
 } from '@/lib/api'
 import { AlertTriangle, CheckCircle, Clock, Users, Zap } from 'lucide-react'
 import { useAuthStore } from '@/lib/store/authStore'
@@ -17,6 +17,7 @@ export default function AttendancePage() {
   const [subjects, setSubjects] = useState<Subject[]>([])
   const [budget, setBudget] = useState<BunkBudget[]>([])
   const [polls, setPolls] = useState<Poll[]>([])
+  const [timetableSubjects, setTimetableSubjects] = useState<string[]>([])
   const [loading, setLoading] = useState(true)
 
   // Log form
@@ -28,16 +29,32 @@ export default function AttendancePage() {
 
   useEffect(() => {
     Promise.all([
-      getAttendanceStats(),
-      getBunkBudget(),
-      getMassBunkPolls(),
-    ]).then(([s, b, p]) => {
+      getAttendanceStats().catch(() => [] as Subject[]),
+      getBunkBudget().catch(() => [] as BunkBudget[]),
+      getMassBunkPolls().catch(() => [] as Poll[]),
+      getTimetable().catch(() => null),
+    ]).then(([s, b, p, tt]) => {
       setSubjects(s as Subject[])
       setBudget(b as BunkBudget[])
       setPolls(p as Poll[])
+      if (tt) {
+        const ttData = tt as any
+        const subs = Array.from(new Set(
+          (ttData.days ?? []).flatMap((d: string) =>
+            Object.values(ttData.grid?.[d] ?? {})
+          ).filter(Boolean)
+        )) as string[]
+        setTimetableSubjects(subs)
+      }
       setLoading(false)
     })
   }, [])
+
+  // Merge timetable subjects with already-logged subjects (timetable is the source of truth)
+  const allSubjectNames = Array.from(new Set([
+    ...timetableSubjects,
+    ...subjects.map(s => s.subject),
+  ]))
 
   const validSubjects = subjects.filter(s => s.status !== 'cancelled')
   const criticalCount = subjects.filter(s => s.status === 'critical').length
@@ -171,7 +188,13 @@ export default function AttendancePage() {
 
           {/* Log Attendance */}
           <div className="synapto-card p-5">
-            <p className="label-upper mb-3">Log Attendance</p>
+            <div className="flex items-center justify-between mb-3">
+              <p className="label-upper">Log Attendance</p>
+              {timetableSubjects.length > 0
+                ? <span className="text-[9px] font-bold uppercase tracking-widest text-[#22c55e]">{timetableSubjects.length} subjects</span>
+                : <span className="text-[9px] text-[#6b7280]">no timetable</span>
+              }
+            </div>
             <div className="space-y-3">
               <select
                 value={logSubject}
@@ -179,8 +202,8 @@ export default function AttendancePage() {
                 className="w-full rounded-lg border border-white/[0.07] bg-[#0a0a0f] px-3 py-2 text-xs text-white outline-none focus:border-[#00e5ff]/40"
               >
                 <option value="">Select subject</option>
-                {subjects.map(s => (
-                  <option key={s.subject} value={s.subject}>{s.subject}</option>
+                {allSubjectNames.map(name => (
+                  <option key={name} value={name}>{name}</option>
                 ))}
               </select>
               <input
