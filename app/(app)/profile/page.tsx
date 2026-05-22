@@ -5,19 +5,21 @@ import { getUserMe, updateUserProfile } from '@/lib/api'
 import { useAuthStore } from '@/lib/store/authStore'
 import { User, Save, Zap, Bell, Shield } from 'lucide-react'
 
-interface Profile { name: string; email: string; college: string; branch: string; year: string; section: string; isCR: boolean; phone: string }
+interface Profile { name: string; email: string; college: string; branch: string; year: string; semester: string; section: string; isCR: boolean; phone: string }
 
 const YEARS = ['1', '2', '3', '4']
+const SEMESTERS = ['1', '2', '3', '4', '5', '6', '7', '8']
 const BRANCHES = ['Computer Science', 'Information Technology', 'Electronics', 'Mechanical', 'Civil']
 
 export default function ProfilePage() {
   const { user, setAuth, token } = useAuthStore()
-  const [form, setForm] = useState<Profile>({ name: '', email: '', college: '', branch: '', year: '', section: '', isCR: false, phone: '' })
+  const [form, setForm] = useState<Profile>({ name: '', email: '', college: '', branch: '', year: '', semester: '', section: '', isCR: false, phone: '' })
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
 
   useEffect(() => {
     getUserMe().then(p => {
+      if (!p) return
       const profile = p as Profile
       setForm({
         name: profile.name ?? user?.name ?? '',
@@ -25,6 +27,7 @@ export default function ProfilePage() {
         college: profile.college ?? '',
         branch: profile.branch ?? 'Computer Science',
         year: profile.year ?? '2',
+        semester: profile.semester ?? '1',
         section: profile.section ?? 'A',
         isCR: profile.isCR ?? false,
         phone: profile.phone ?? '',
@@ -35,7 +38,7 @@ export default function ProfilePage() {
   const handleSave = async () => {
     setSaving(true)
     try {
-      await updateUserProfile({ ...form, year: form.year ? Number(form.year) : undefined })
+      await updateUserProfile({ ...form, year: form.year ? Number(form.year) : undefined, semester: form.semester ? Number(form.semester) : undefined })
       setAuth({ ...(user ?? {}), name: form.name, branch: form.branch, year: form.year, isCR: form.isCR } as any, token ?? '')
       setSaved(true)
       setTimeout(() => setSaved(false), 3000)
@@ -106,6 +109,16 @@ export default function ProfilePage() {
                 className="w-full rounded-lg border border-white/[0.07] bg-[#0a0a0f] px-3 py-2 text-xs text-white outline-none focus:border-[#00e5ff]/40"
               >
                 {YEARS.map(y => <option key={y} value={y}>Year {y}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className="block text-[10px] uppercase tracking-widest text-[#6b7280] mb-1">Semester</label>
+              <select
+                value={form.semester}
+                onChange={e => setForm(p => ({ ...p, semester: e.target.value }))}
+                className="w-full rounded-lg border border-white/[0.07] bg-[#0a0a0f] px-3 py-2 text-xs text-white outline-none focus:border-[#00e5ff]/40"
+              >
+                {SEMESTERS.map(s => <option key={s} value={s}>Semester {s}</option>)}
               </select>
             </div>
 
