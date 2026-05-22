@@ -1,56 +1,106 @@
 "use client"
 
 import { useEffect, useState } from 'react'
+import Link from 'next/link'
 import { getTimetable } from '@/lib/api'
-import { Table2 } from 'lucide-react'
+import { useAuthStore } from '@/lib/store/authStore'
+import { Upload } from 'lucide-react'
 
-interface Slot { time: string; label: string; isBreak?: boolean }
-type Cell = { subject: string; code: string; room: string; color: string; isLab?: boolean } | null
+// Backend shape: grid[day][time] = subjectName (string)
 interface TimetableData {
   days: string[]
-  slots: Slot[]
-  grid: Record<string, Record<string, Cell>>
+  timeSlots: string[]
+  grid: Record<string, Record<string, string>>
+}
+
+// Deterministic colour per subject
+const PALETTE = [
+  '#00e5ff', '#a855f7', '#22c55e', '#f59e0b', '#ef4444',
+  '#3b82f6', '#ec4899', '#14b8a6', '#f97316', '#8b5cf6',
+]
+function subjectColor(name: string): string {
+  let h = 0
+  for (let i = 0; i < name.length; i++) h = (h * 31 + name.charCodeAt(i)) & 0xffffffff
+  return PALETTE[Math.abs(h) % PALETTE.length]
 }
 
 export default function TimetablePage() {
+  const { user } = useAuthStore()
   const [data, setData] = useState<TimetableData | null>(null)
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
-    getTimetable().then(d => { setData(d as TimetableData); setLoading(false) })
+    getTimetable()
+      .then(d => { setData(d as TimetableData); setLoading(false) })
+      .catch(e => { setError(e?.message ?? 'Failed to load timetable'); setLoading(false) })
   }, [])
 
   const today = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'][new Date().getDay()]
 
-  if (loading) {
-    return (
-      <div className="flex h-full items-center justify-center">
-        <div className="h-8 w-8 animate-spin rounded-full border-2 border-[#00e5ff] border-t-transparent" />
-      </div>
-    )
-  }
+  if (loading) return (
+    <div className="flex h-full items-center justify-center">
+      <div className="h-8 w-8 animate-spin rounded-full border-2 border-[#00e5ff] border-t-transparent" />
+    </div>
+  )
 
-  if (!data) return <div className="p-6 text-[#6b7280]">No timetable data</div>
+  if (error) return (
+    <div className="p-6 space-y-2">
+      <p className="text-[#ef4444] text-sm font-semibold">Could not load timetable</p>
+      <p className="text-[#6b7280] text-xs">{error}</p>
+      {error.includes('profile') && (
+        <a href="/profile" className="inline-block mt-2 text-xs text-[#00e5ff] hover:underline">→ Go to Profile to complete setup</a>
+      )}
+      {user?.isCR && (
+        <Link href="/timetable/upload" className="inline-flex items-center gap-2 mt-3 rounded-lg bg-[#00e5ff] px-4 py-2 text-xs font-black uppercase tracking-widest text-black hover:opacity-90">
+          <Upload size={12} /> Upload Timetable
+        </Link>
+      )}
+    </div>
+  )
+
+  if (!data || !data.timeSlots?.length) return (
+    <div className="p-6 space-y-3">
+      <p className="text-[#6b7280] text-sm">No timetable uploaded for your section yet.</p>
+      {user?.isCR && (
+        <Link href="/timetable/upload" className="inline-flex items-center gap-2 rounded-lg bg-[#00e5ff] px-4 py-2 text-xs font-black uppercase tracking-widest text-black hover:opacity-90">
+          <Upload size={12} /> Upload Timetable
+        </Link>
+      )}
+    </div>
+  )
+
+  // Collect all unique subjects for the legend
+  const allSubjects = Array.from(new Set(
+    data.days.flatMap(d => data.timeSlots.map(t => data.grid[d]?.[t]).filter(Boolean))
+  ))
 
   return (
     <div className="min-h-full bg-[#0a0a0f] p-6">
-      <div className="mb-6">
-        <p className="label-upper">Schedule</p>
-        <h1 className="mt-0.5 text-2xl font-black uppercase tracking-tight text-white">
-          WEEKLY <span className="text-[#00e5ff]">TIMETABLE</span>
-        </h1>
-        <p className="mt-1 text-xs text-[#6b7280]">
-          Today is <span className="text-white font-semibold">{today}</span>
-        </p>
+      <div className="mb-6 flex items-start justify-between">
+        <div>
+          <p className="label-upper">Schedule</p>
+          <h1 className="mt-0.5 text-2xl font-black uppercase tracking-tight text-white">
+            WEEKLY <span className="text-[#00e5ff]">TIMETABLE</span>
+          </h1>
+          <p className="mt-1 text-xs text-[#6b7280]">
+            Today is <span className="text-white font-semibold">{today}</span>
+          </p>
+        </div>
+        {user?.isCR && (
+          <Link href="/timetable/upload" className="inline-flex items-center gap-2 rounded-lg bg-[#00e5ff] px-4 py-2 text-xs font-black uppercase tracking-widest text-black hover:opacity-90">
+            <Upload size={12} /> Upload
+          </Link>
+        )}
       </div>
 
       {/* Mobile: stacked day-by-day */}
       <div className="block lg:hidden space-y-4">
         {data.days.map(day => {
           const isToday = day === today
-          const classes = data.slots
-            .filter(s => !s.isBreak && data.grid[day]?.[s.time])
-            .map(s => ({ slot: s, cell: data.grid[day][s.time] }))
+          const classes = data.timeSlots
+            .map(t => ({ time: t, subject: data.grid[day]?.[t] }))
+            .filter(s => !!s.subject)
           return (
             <div key={day} className={`synapto-card p-4 ${isToday ? 'border-[#00e5ff]/30' : ''}`}>
               <p className={`label-upper mb-3 ${isToday ? 'text-[#00e5ff]' : ''}`}>
@@ -60,18 +110,18 @@ export default function TimetablePage() {
                 ? <p className="text-xs text-[#6b7280]">No classes</p>
                 : (
                   <div className="space-y-2">
-                    {classes.map(({ slot, cell }) => cell && (
-                      <div key={slot.time} className="flex items-center gap-3 rounded-lg px-3 py-2" style={{ backgroundColor: `${cell.color}10` }}>
-                        <div className="h-full w-0.5 rounded-full self-stretch" style={{ backgroundColor: cell.color }} />
-                        <div className="min-w-0 flex-1">
-                          <p className="text-xs font-semibold text-white">{cell.subject}</p>
-                          <p className="text-[10px] text-[#6b7280]">{cell.room} · {slot.label}</p>
+                    {classes.map(({ time, subject }) => {
+                      const color = subjectColor(subject)
+                      return (
+                        <div key={time} className="flex items-center gap-3 rounded-lg px-3 py-2" style={{ backgroundColor: `${color}10` }}>
+                          <div className="h-full w-0.5 rounded-full self-stretch" style={{ backgroundColor: color }} />
+                          <div className="min-w-0 flex-1">
+                            <p className="text-xs font-semibold text-white">{subject}</p>
+                            <p className="text-[10px] text-[#6b7280]">{time}</p>
+                          </div>
                         </div>
-                        {cell.isLab && (
-                          <span className="rounded px-1.5 py-0.5 text-[9px] font-bold uppercase" style={{ backgroundColor: `${cell.color}20`, color: cell.color }}>Lab</span>
-                        )}
-                      </div>
-                    ))}
+                      )
+                    })}
                   </div>
                 )
               }
@@ -85,7 +135,7 @@ export default function TimetablePage() {
         <table className="w-full border-collapse">
           <thead>
             <tr>
-              <th className="w-24 pb-3 text-[10px] uppercase tracking-widest text-[#6b7280] text-left">Time</th>
+              <th className="w-28 pb-3 text-[10px] uppercase tracking-widest text-[#6b7280] text-left">Time</th>
               {data.days.map(day => (
                 <th key={day} className={`pb-3 text-[10px] uppercase tracking-widest text-left ${day === today ? 'text-[#00e5ff]' : 'text-[#6b7280]'}`}>
                   {day.slice(0, 3)}{day === today ? ' ●' : ''}
@@ -94,41 +144,30 @@ export default function TimetablePage() {
             </tr>
           </thead>
           <tbody>
-            {data.slots.map(slot => (
-              <tr key={slot.time} className="border-t border-white/[0.04]">
+            {data.timeSlots.map(time => (
+              <tr key={time} className="border-t border-white/[0.04]">
                 <td className="py-2 pr-4">
-                  <span className="text-[10px] text-[#6b7280]">{slot.label}</span>
+                  <span className="text-[10px] text-[#6b7280] font-mono">{time}</span>
                 </td>
-                {slot.isBreak ? (
-                  <td colSpan={data.days.length} className="py-2">
-                    <div className="flex items-center gap-2">
-                      <div className="h-px flex-1 bg-white/[0.04]" />
-                      <span className="text-[9px] uppercase tracking-widest text-[#6b7280]">Lunch Break</span>
-                      <div className="h-px flex-1 bg-white/[0.04]" />
-                    </div>
-                  </td>
-                ) : (
-                  data.days.map(day => {
-                    const cell = data.grid[day]?.[slot.time]
-                    const isToday = day === today
-                    return (
-                      <td key={day} className={`py-1 pr-2 ${isToday ? 'bg-[#00e5ff]/[0.02]' : ''}`}>
-                        {cell ? (
-                          <div
-                            className="rounded-lg px-2.5 py-2 h-full"
-                            style={{ backgroundColor: `${cell.color}12`, borderLeft: `2px solid ${cell.color}` }}
-                          >
-                            <p className="text-[11px] font-semibold text-white leading-tight truncate">{cell.subject}</p>
-                            <p className="text-[9px] text-[#6b7280] mt-0.5">{cell.room}</p>
-                            {cell.isLab && <span className="mt-0.5 inline-block rounded text-[8px] font-bold uppercase px-1" style={{ backgroundColor: `${cell.color}20`, color: cell.color }}>Lab</span>}
-                          </div>
-                        ) : (
-                          <div className="h-14 rounded-lg bg-white/[0.01]" />
-                        )}
-                      </td>
-                    )
-                  })
-                )}
+                {data.days.map(day => {
+                  const subject = data.grid[day]?.[time]
+                  const isToday = day === today
+                  const color = subject ? subjectColor(subject) : null
+                  return (
+                    <td key={day} className={`py-1 pr-2 ${isToday ? 'bg-[#00e5ff]/[0.02]' : ''}`}>
+                      {subject && color ? (
+                        <div
+                          className="rounded-lg px-2.5 py-2"
+                          style={{ backgroundColor: `${color}12`, borderLeft: `2px solid ${color}` }}
+                        >
+                          <p className="text-[11px] font-semibold text-white leading-tight truncate">{subject}</p>
+                        </div>
+                      ) : (
+                        <div className="h-10 rounded-lg bg-white/[0.01]" />
+                      )}
+                    </td>
+                  )
+                })}
               </tr>
             ))}
           </tbody>
@@ -136,21 +175,19 @@ export default function TimetablePage() {
       </div>
 
       {/* Subject legend */}
-      <div className="mt-6 synapto-card p-4">
-        <p className="label-upper mb-3">Subject Legend</p>
-        <div className="flex flex-wrap gap-3">
-          {Array.from(new Set(
-            data.days.flatMap(day =>
-              data.slots.filter(s => !s.isBreak).map(s => data.grid[day]?.[s.time]).filter(Boolean)
-            )
-          )).filter((c, i, arr) => arr.findIndex(x => x?.subject === c?.subject) === i).map(cell => cell && (
-            <div key={cell.subject} className="flex items-center gap-2">
-              <div className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: cell.color }} />
-              <span className="text-[10px] text-[#6b7280]">{cell.subject} <span className="text-[#6b7280]/60">({cell.code.split(' ')[0]})</span></span>
-            </div>
-          ))}
+      {allSubjects.length > 0 && (
+        <div className="mt-6 synapto-card p-4">
+          <p className="label-upper mb-3">Subject Legend</p>
+          <div className="flex flex-wrap gap-3">
+            {allSubjects.map(subject => (
+              <div key={subject} className="flex items-center gap-2">
+                <div className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: subjectColor(subject) }} />
+                <span className="text-[10px] text-[#6b7280]">{subject}</span>
+              </div>
+            ))}
+          </div>
         </div>
-      </div>
+      )}
     </div>
   )
 }
