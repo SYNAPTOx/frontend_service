@@ -19,14 +19,31 @@ export const getAttendanceStats = async () => {
 export const logAttendance = (data: { subject: string; date: string; status: 'present' | 'absent' | 'cancelled' }) =>
   USE_MOCK ? mock.logAttendance(data) : http.post('/api/attendance/self', data)
 
-export const getBunkBudget = () =>
-  USE_MOCK ? mock.getBunkBudget() : http.get('/api/attendance/bunk-budget')
+export const getBunkBudget = async () => {
+  if (USE_MOCK) return mock.getBunkBudget()
+  const raw = await http.get<Record<string, { totalClasses: number; absences: number; remaining: number }>>('/api/attendance/bunk-budget')
+  return Object.entries(raw).map(([subject, s]) => ({
+    subject,
+    maxAbsencesAllowed: s.remaining,
+    safeToSkip: s.remaining > 0,
+  }))
+}
 
 export const getAttendancePrediction = () =>
   USE_MOCK ? mock.getPrediction() : http.get('/api/attendance/prediction')
 
-export const getMassBunkPolls = () =>
-  USE_MOCK ? mock.getMassBunkPolls() : http.get('/api/mass-bunk/active')
+export const getMassBunkPolls = async () => {
+  if (USE_MOCK) return mock.getMassBunkPolls()
+  const raw = await http.get<Array<{ _id: string; subject: string; reason: string; proposedDate: string; votes: Array<{ userId: string; vote: string }> }>>('/api/mass-bunk/active')
+  return raw.map(poll => ({
+    ...poll,
+    votes: {
+      yes: poll.votes.filter(v => v.vote === 'yes').length,
+      no: poll.votes.filter(v => v.vote === 'no').length,
+    },
+    totalVoters: poll.votes.length,
+  }))
+}
 
 export const getAllMassBunkPolls = () =>
   USE_MOCK ? mock.getAllPolls() : http.get('/api/mass-bunk')
