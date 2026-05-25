@@ -9,6 +9,12 @@ export const sendChatMessage = (data: { message: string; sessionId?: string }): 
 export const getChatHistory = () =>
   USE_MOCK ? mock.getChatHistory() : http.get('/api/ai/chat/history')
 
+export const getChatSession = (sessionId: string) =>
+  USE_MOCK ? mock.getChatHistory() : http.get(`/api/ai/chat/${sessionId}`)
+
+export const deleteChatSession = (sessionId: string) =>
+  USE_MOCK ? Promise.resolve() : http.delete(`/api/ai/chat/${sessionId}`)
+
 export const clearChatHistory = () =>
   USE_MOCK ? mock.clearHistory() : http.delete('/api/ai/chat/history')
 

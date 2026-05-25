@@ -1,9 +1,9 @@
 "use client"
 
 import { useEffect, useRef, useState } from 'react'
-import { getChatHistory, sendChatMessage } from '@/lib/api'
+import { getChatHistory, getChatSession, deleteChatSession, sendChatMessage } from '@/lib/api'
 import { useAuthStore } from '@/lib/store/authStore'
-import { Brain, Send, Plus, Zap, Search, Calendar, HelpCircle, BookOpen, Clock } from 'lucide-react'
+import { Brain, Send, Plus, Zap, Search, Calendar, HelpCircle, BookOpen, Clock, Trash2 } from 'lucide-react'
 
 interface Message { role: 'user' | 'assistant'; content: string; toolsUsed?: string[]; streaming?: boolean }
 interface Session { _id: string; createdAt: string; messages: Message[]; title?: string }
@@ -40,8 +40,8 @@ export default function AIChatPage() {
 
   const loadHistory = async () => {
     try {
-      const data = await getChatHistory()
-      if (Array.isArray(data)) setSessions(data as Session[])
+      const data = await getChatHistory() as { sessions: Session[] }
+      setSessions(data.sessions || [])
     } catch {}
   }
 
@@ -52,10 +52,23 @@ export default function AIChatPage() {
     setActiveTools([])
   }
 
-  const loadSession = (s: Session) => {
+  const handleDeleteSession = async (e: React.MouseEvent, sessionId: string) => {
+    e.stopPropagation()
+    try {
+      await deleteChatSession(sessionId)
+      setSessions(prev => prev.filter(s => s._id !== sessionId))
+      if (currentSessionId === sessionId) startNewSession()
+    } catch {}
+  }
+
+  const loadSession = async (s: Session) => {
     setCurrentSessionId(s._id)
-    setMessages(s.messages || [])
+    setMessages([])
     setActiveTools([])
+    try {
+      const full = await getChatSession(s._id) as Session
+      setMessages(full.messages || [])
+    } catch {}
   }
 
   const handleSend = async (text?: string) => {
@@ -157,18 +170,28 @@ export default function AIChatPage() {
             <p className="px-2 text-[10px] text-[#6b7280]">No past sessions</p>
           ) : (
             sessions.map(s => (
-              <button
+              <div
                 key={s._id}
-                onClick={() => loadSession(s)}
-                className={`mb-1 w-full rounded-lg px-3 py-2 text-left text-xs transition-colors ${
+                className={`group mb-1 flex items-center gap-1 rounded-lg transition-colors ${
                   currentSessionId === s._id
                     ? 'bg-[#00e5ff]/10 text-[#00e5ff]'
                     : 'text-[#6b7280] hover:bg-white/5 hover:text-white'
                 }`}
               >
-                <p className="truncate font-medium">{sessionTitle(s)}</p>
-                <p className="text-[9px] text-[#6b7280] mt-0.5">{new Date(s.createdAt).toLocaleDateString()}</p>
-              </button>
+                <button
+                  onClick={() => loadSession(s)}
+                  className="flex-1 min-w-0 px-3 py-2 text-left text-xs"
+                >
+                  <p className="truncate font-medium">{sessionTitle(s)}</p>
+                  <p className="text-[9px] text-[#6b7280] mt-0.5">{new Date(s.createdAt).toLocaleDateString()}</p>
+                </button>
+                <button
+                  onClick={e => handleDeleteSession(e, s._id)}
+                  className="shrink-0 pr-2 opacity-0 group-hover:opacity-100 transition-opacity text-[#6b7280] hover:text-red-400"
+                >
+                  <Trash2 size={11} />
+                </button>
+              </div>
             ))
           )}
         </div>

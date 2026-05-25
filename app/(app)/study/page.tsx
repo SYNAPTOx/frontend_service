@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
-import { getFiles, uploadFile, deleteFile, getNotes, getSubjects } from '@/lib/api'
+import { getFiles, uploadFile, deleteFile, getNotes, getSubjects, getTimetable } from '@/lib/api'
 import { Upload, Cloud, FileText, Trash2, ExternalLink, Clock, CheckCircle, AlertCircle, Loader2, FolderOpen } from 'lucide-react'
 
 interface StudyFile {
@@ -26,12 +26,24 @@ interface Note {
   createdAt: string
 }
 
-const FILE_COLORS: Record<string, string> = {
-  'Operating Systems': '#00e5ff',
-  'Data Structures': '#a855f7',
-  'Computer Networks': '#22c55e',
-  'Database Systems': '#facc15',
-  'Software Engineering': '#f97316',
+const FALLBACK_COLORS = ['#00e5ff', '#a855f7', '#22c55e', '#facc15', '#f97316', '#ef4444', '#3b82f6']
+
+function extractTimetableSubjects(timetable: any): { subject: string; color: string }[] {
+  const seen = new Map<string, string>()
+  const grid = timetable?.grid ?? timetable?.data?.grid ?? {}
+  for (const day of Object.values(grid) as any[]) {
+    if (!day || typeof day !== 'object') continue
+    for (const slot of Object.values(day) as any[]) {
+      // Real API: slot is a plain string e.g. "Data Structures"
+      // Mock API: slot is { subject: "...", color: "..." }
+      const name = typeof slot === 'string' ? slot : slot?.subject
+      if (name && !seen.has(name)) {
+        const color = typeof slot === 'object' ? (slot?.color ?? null) : null
+        seen.set(name, color ?? FALLBACK_COLORS[seen.size % FALLBACK_COLORS.length])
+      }
+    }
+  }
+  return Array.from(seen.entries()).map(([subject, color]) => ({ subject, color }))
 }
 
 const typeColor = (mime: string) => {
@@ -61,6 +73,7 @@ export default function StudyPage() {
   const [files, setFiles] = useState<StudyFile[]>([])
   const [notes, setNotes] = useState<Note[]>([])
   const [subjects, setSubjects] = useState<string[]>([])
+  const [subjectColors, setSubjectColors] = useState<Record<string, string>>({})
   const [loading, setLoading] = useState(true)
   const [uploading, setUploading] = useState(false)
   const [uploadSubject, setUploadSubject] = useState('')
@@ -68,10 +81,21 @@ export default function StudyPage() {
   const fileRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
-    Promise.all([getFiles(), getNotes(), getSubjects()]).then(([f, n, s]) => {
+    Promise.all([getFiles(), getNotes(), getSubjects(), getTimetable()]).then(([f, n, s, tt]) => {
       setFiles(f as StudyFile[])
       setNotes(n as Note[])
-      setSubjects(s as string[])
+
+      // Subjects from timetable (with colors) + any extra subjects from uploaded files
+      const ttSubjects = extractTimetableSubjects(tt)
+      const colorMap: Record<string, string> = {}
+      ttSubjects.forEach(({ subject, color }) => { colorMap[subject] = color })
+
+      const fileSubjects = (s as string[]).filter(Boolean)
+      const merged = [...ttSubjects.map(t => t.subject)]
+      fileSubjects.forEach(sub => { if (!colorMap[sub]) { colorMap[sub] = FALLBACK_COLORS[merged.length % FALLBACK_COLORS.length]; merged.push(sub) } })
+
+      setSubjectColors(colorMap)
+      setSubjects(merged)
       setLoading(false)
     })
   }, [])
@@ -133,7 +157,7 @@ export default function StudyPage() {
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
               {subjects.map(sub => {
                 const count = bySubject[sub]?.length ?? 0
-                const color = FILE_COLORS[sub] ?? '#6b7280'
+                const color = subjectColors[sub] ?? '#6b7280'
                 return (
                   <div
                     key={sub}
@@ -172,12 +196,12 @@ export default function StudyPage() {
                     </div>
                     <div className="flex items-center gap-2">
                       {statusIcon(f.processingStatus)}
-                      {f.processingStatus === 'done' && f.studyPackId && (
+                      {(f.processingStatus === 'done' || f.processingStatus === 'processing' || f.processingStatus === 'pending') && (
                         <Link
                           href={`/study/pack/${f._id}`}
                           className="rounded px-2 py-1 text-[9px] font-bold uppercase tracking-wider text-[#00e5ff] hover:bg-[#00e5ff]/10 transition-colors"
                         >
-                          Pack
+                          {f.processingStatus === 'done' ? 'Pack' : 'View…'}
                         </Link>
                       )}
                       <button
