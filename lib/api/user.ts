@@ -7,7 +7,7 @@ export const getUserMe = () =>
   USE_MOCK ? mock.getMe() : http.get('/api/user/me')
 
 export const updateProfile = (data: {
-  name?: string; college?: string; branch?: string; year?: number; section?: string; bio?: string
+  name?: string; college?: string; branch?: string; year?: number; section?: string; bio?: string; semester?: number
 }) => USE_MOCK ? mock.updateProfile(data) : http.put('/api/user/profile', data)
 
 export const uploadAvatar = (formData: FormData) =>
