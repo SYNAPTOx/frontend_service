@@ -2,18 +2,22 @@
 
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
-import { getTimetable } from '@/lib/api'
-import { useAuthStore } from '@/lib/store/authStore'
-import { Upload } from 'lucide-react'
+import { getTimetable, getTimetableLog } from '@/lib/api'
+import { Upload, History, AlertTriangle } from 'lucide-react'
 
-// Backend shape: grid[day][time] = subjectName (string)
 interface TimetableData {
   days: string[]
   timeSlots: string[]
   grid: Record<string, Record<string, string>>
 }
 
-// Deterministic colour per subject
+interface LogEntry {
+  _id: string
+  changedByName: string
+  action: string
+  createdAt: string
+}
+
 const PALETTE = [
   '#00e5ff', '#a855f7', '#22c55e', '#f59e0b', '#ef4444',
   '#3b82f6', '#ec4899', '#14b8a6', '#f97316', '#8b5cf6',
@@ -25,8 +29,8 @@ function subjectColor(name: string): string {
 }
 
 export default function TimetablePage() {
-  const { user } = useAuthStore()
   const [data, setData] = useState<TimetableData | null>(null)
+  const [log, setLog] = useState<LogEntry[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
@@ -34,6 +38,9 @@ export default function TimetablePage() {
     getTimetable()
       .then(d => { setData(d as TimetableData); setLoading(false) })
       .catch(e => { setError(e?.message ?? 'Failed to load timetable'); setLoading(false) })
+    getTimetableLog()
+      .then(l => setLog(l as LogEntry[]))
+      .catch(() => {})
   }, [])
 
   const today = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'][new Date().getDay()]
@@ -45,32 +52,27 @@ export default function TimetablePage() {
   )
 
   if (error) return (
-    <div className="p-6 space-y-2">
+    <div className="p-6 space-y-3">
       <p className="text-[#ef4444] text-sm font-semibold">Could not load timetable</p>
       <p className="text-[#6b7280] text-xs">{error}</p>
       {error.includes('profile') && (
         <a href="/profile" className="inline-block mt-2 text-xs text-[#00e5ff] hover:underline">→ Go to Profile to complete setup</a>
       )}
-      {user?.isCR && (
-        <Link href="/timetable/upload" className="inline-flex items-center gap-2 mt-3 rounded-lg bg-[#00e5ff] px-4 py-2 text-xs font-black uppercase tracking-widest text-black hover:opacity-90">
-          <Upload size={12} /> Upload Timetable
-        </Link>
-      )}
+      <Link href="/timetable/upload" className="inline-flex items-center gap-2 mt-3 rounded-lg bg-[#00e5ff] px-4 py-2 text-xs font-black uppercase tracking-widest text-black hover:opacity-90">
+        <Upload size={12} /> Upload Timetable
+      </Link>
     </div>
   )
 
   if (!data || !data.timeSlots?.length) return (
     <div className="p-6 space-y-3">
       <p className="text-[#6b7280] text-sm">No timetable uploaded for your section yet.</p>
-      {user?.isCR && (
-        <Link href="/timetable/upload" className="inline-flex items-center gap-2 rounded-lg bg-[#00e5ff] px-4 py-2 text-xs font-black uppercase tracking-widest text-black hover:opacity-90">
-          <Upload size={12} /> Upload Timetable
-        </Link>
-      )}
+      <Link href="/timetable/upload" className="inline-flex items-center gap-2 rounded-lg bg-[#00e5ff] px-4 py-2 text-xs font-black uppercase tracking-widest text-black hover:opacity-90">
+        <Upload size={12} /> Upload Timetable
+      </Link>
     </div>
   )
 
-  // Collect all unique subjects for the legend
   const allSubjects = Array.from(new Set(
     data.days.flatMap(d => data.timeSlots.map(t => data.grid[d]?.[t]).filter(Boolean))
   ))
@@ -87,11 +89,17 @@ export default function TimetablePage() {
             Today is <span className="text-white font-semibold">{today}</span>
           </p>
         </div>
-        {user?.isCR && (
-          <Link href="/timetable/upload" className="inline-flex items-center gap-2 rounded-lg bg-[#00e5ff] px-4 py-2 text-xs font-black uppercase tracking-widest text-black hover:opacity-90">
-            <Upload size={12} /> Upload
-          </Link>
-        )}
+        <Link href="/timetable/upload" className="inline-flex items-center gap-2 rounded-lg bg-[#00e5ff] px-4 py-2 text-xs font-black uppercase tracking-widest text-black hover:opacity-90">
+          <Upload size={12} /> Update
+        </Link>
+      </div>
+
+      {/* Community warning */}
+      <div className="mb-4 flex items-start gap-2 rounded-lg border border-[#f59e0b]/20 bg-[#f59e0b]/5 px-4 py-3">
+        <AlertTriangle size={13} className="text-[#f59e0b] shrink-0 mt-0.5" />
+        <p className="text-[10px] text-[#f59e0b]">
+          This timetable is shared with your entire section. Any student can update it — you are visible to the whole class. Update responsibly.
+        </p>
       </div>
 
       {/* Mobile: stacked day-by-day */}
@@ -188,6 +196,27 @@ export default function TimetablePage() {
           </div>
         </div>
       )}
+
+      {/* Change log */}
+      <div className="mt-6 synapto-card p-4">
+        <div className="flex items-center gap-2 mb-3">
+          <History size={13} className="text-[#a855f7]" />
+          <p className="label-upper">Change Log</p>
+        </div>
+        {log.length === 0 ? (
+          <p className="text-xs text-[#6b7280]">No changes recorded yet.</p>
+        ) : (
+          <div className="space-y-2">
+            {log.map(entry => (
+              <div key={entry._id} className="flex items-center justify-between text-xs">
+                <span className="text-white font-medium">{entry.changedByName}</span>
+                <span className="text-[#6b7280]">{entry.action}</span>
+                <span className="text-[#6b7280] text-[10px]">{new Date(entry.createdAt).toLocaleString()}</span>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
     </div>
   )
 }

@@ -11,3 +11,6 @@ export const uploadTimetable = (formData: FormData) =>
 
 export const updateTimetable = (data: unknown) =>
   USE_MOCK ? mock.updateTimetable(data) : http.put('/api/timetable/me', data)
+
+export const getTimetableLog = () =>
+  USE_MOCK ? Promise.resolve([]) : http.get('/api/timetable/log')

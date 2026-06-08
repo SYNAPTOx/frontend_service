@@ -28,5 +28,11 @@ export const getSettings = () =>
 export const updateSettings = (data: Record<string, unknown>) =>
   USE_MOCK ? mock.updateSettings(data) : http.put('/api/user/settings', data)
 
+export const sendCollegeEmailOtp = (collegeEmail: string) =>
+  http.post('/api/user/verify-college-email', { collegeEmail })
+
+export const confirmCollegeEmailOtp = (otp: string) =>
+  http.post('/api/user/verify-college-email/confirm', { otp })
+
 // Alias used by profile page
 export const updateUserProfile = updateProfile

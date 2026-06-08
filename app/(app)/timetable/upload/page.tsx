@@ -109,7 +109,7 @@ export default function UploadPage() {
       setPhase('saved')
       setTimeout(() => router.push('/timetable'), 1200)
     } catch (err: any) {
-      setSaveError(err?.message ?? 'Failed to save. Make sure you are logged in as CR.')
+      setSaveError(err?.message ?? 'Failed to save. Please try again.')
       setSaving(false)
     }
   }

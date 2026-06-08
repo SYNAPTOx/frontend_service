@@ -4,7 +4,7 @@ import * as mock from '@/lib/mock/handlers/ai.handler'
 const USE_MOCK = process.env.NEXT_PUBLIC_USE_MOCK === 'true'
 
 export const sendChatMessage = (data: { message: string; sessionId?: string }): Promise<Response> =>
-  USE_MOCK ? mock.sendMessage(data) : http.stream('/api/ai/chat', data)
+  USE_MOCK ? mock.sendMessage(data) : http.stream('/api/ai/chat', { message: data.message, session_id: data.sessionId })
 
 export const getChatHistory = () =>
   USE_MOCK ? mock.getChatHistory() : http.get('/api/ai/chat/history')

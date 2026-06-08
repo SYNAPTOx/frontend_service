@@ -7,8 +7,10 @@ export interface AuthUser {
   college?: string
   branch?: string
   year?: number
+  semester?: number
   section?: string
   isCR: boolean
+  profileComplete?: boolean
 }
 
 interface AuthState {
@@ -19,6 +21,11 @@ interface AuthState {
   setAuth: (user: AuthUser, token: string) => void
   clear: () => void
   isAuthenticated: () => boolean
+}
+
+export const isProfileComplete = (user: AuthUser | null): boolean => {
+  if (!user) return false
+  return !!(user.name && user.college && user.branch && user.year && user.semester && user.section)
 }
 
 export const useAuthStore = create<AuthState>((set, get) => ({

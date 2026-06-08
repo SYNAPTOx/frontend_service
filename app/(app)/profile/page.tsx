@@ -1,11 +1,11 @@
 "use client"
 
 import { useEffect, useState } from 'react'
-import { getUserMe, updateUserProfile, getSettings, updateSettings } from '@/lib/api'
+import { getUserMe, updateUserProfile, getSettings, updateSettings, sendCollegeEmailOtp, confirmCollegeEmailOtp } from '@/lib/api'
 import { useAuthStore } from '@/lib/store/authStore'
-import { User, Save, Zap, Bell, Shield } from 'lucide-react'
+import { User, Save, Zap, Bell, Shield, CheckCircle, Mail } from 'lucide-react'
 
-interface Profile { name: string; email: string; college: string; branch: string; year: string; semester: string; section: string; isCR: boolean; phone: string }
+interface Profile { name: string; email: string; college: string; branch: string; year: string; semester: string; section: string; isCR: boolean; phone: string; collegeEmail: string; collegeEmailVerified: boolean }
 interface NotifSettings { notifications: boolean; whatsapp: boolean }
 
 const YEARS = ['1', '2', '3', '4']
@@ -14,10 +14,14 @@ const BRANCHES = ['Computer Science', 'Information Technology', 'Electronics', '
 
 export default function ProfilePage() {
   const { user, setAuth, token } = useAuthStore()
-  const [form, setForm] = useState<Profile>({ name: '', email: '', college: '', branch: '', year: '', semester: '', section: '', isCR: false, phone: '' })
+  const [form, setForm] = useState<Profile>({ name: '', email: '', college: '', branch: '', year: '', semester: '', section: '', isCR: false, phone: '', collegeEmail: '', collegeEmailVerified: false })
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
   const [notif, setNotif] = useState<NotifSettings>({ notifications: true, whatsapp: false })
+  const [collegeOtpSent, setCollegeOtpSent] = useState(false)
+  const [collegeOtp, setCollegeOtp] = useState('')
+  const [otpLoading, setOtpLoading] = useState(false)
+  const [otpMsg, setOtpMsg] = useState('')
 
   useEffect(() => {
     getSettings().then((s: any) => {
@@ -25,30 +29,68 @@ export default function ProfilePage() {
     }).catch(() => {})
     getUserMe().then(p => {
       if (!p) return
-      const profile = p as Profile
+      const profile = p as any
       setForm({
         name: profile.name ?? user?.name ?? '',
         email: profile.email ?? user?.email ?? '',
         college: profile.college ?? '',
         branch: profile.branch ?? 'Computer Science',
-        year: profile.year ?? '2',
-        semester: profile.semester ?? '1',
+        year: profile.year != null ? String(profile.year) : '2',
+        semester: profile.semester != null ? String(profile.semester) : '1',
         section: profile.section ?? 'A',
         isCR: profile.isCR ?? false,
         phone: profile.phone ?? '',
+        collegeEmail: profile.collegeEmail ?? '',
+        collegeEmailVerified: profile.collegeEmailVerified ?? false,
       })
     })
-  }, [])
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleSave = async () => {
     setSaving(true)
     try {
       await updateUserProfile({ ...form, year: form.year ? Number(form.year) : undefined, semester: form.semester ? Number(form.semester) : undefined })
-      setAuth({ ...(user ?? {}), name: form.name, branch: form.branch, year: form.year, isCR: form.isCR } as any, token ?? '')
+      setAuth({
+        ...(user ?? {}),
+        name: form.name,
+        college: form.college,
+        branch: form.branch,
+        year: form.year ? Number(form.year) : undefined,
+        semester: form.semester ? Number(form.semester) : undefined,
+        section: form.section,
+        isCR: form.isCR,
+      } as any, token ?? '')
       setSaved(true)
       setTimeout(() => setSaved(false), 3000)
     } finally {
-      setSaving(false) }
+      setSaving(false)
+    }
+  }
+
+  const handleSendOtp = async () => {
+    if (!form.collegeEmail) return
+    setOtpLoading(true); setOtpMsg('')
+    try {
+      await sendCollegeEmailOtp(form.collegeEmail)
+      setCollegeOtpSent(true)
+      setOtpMsg('OTP sent to ' + form.collegeEmail)
+    } catch {
+      setOtpMsg('Failed to send OTP')
+    } finally { setOtpLoading(false) }
+  }
+
+  const handleVerifyOtp = async () => {
+    if (!collegeOtp) return
+    setOtpLoading(true); setOtpMsg('')
+    try {
+      await confirmCollegeEmailOtp(collegeOtp)
+      setForm(p => ({ ...p, collegeEmailVerified: true }))
+      setCollegeOtpSent(false)
+      setCollegeOtp('')
+      setOtpMsg('College email verified!')
+    } catch {
+      setOtpMsg('Invalid or expired OTP')
+    } finally { setOtpLoading(false) }
   }
 
   const initials = form.name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2) || 'SY'
@@ -64,7 +106,7 @@ export default function ProfilePage() {
         <div>
           <p className="label-upper">User Profile</p>
           <h1 className="text-xl font-black uppercase text-white">{form.name || 'Your Profile'}</h1>
-          <p className="text-xs text-[#6b7280]">{form.isCR ? '⭐ Class Representative' : form.branch || 'Student'}</p>
+          <p className="text-xs text-[#6b7280]">{form.branch || 'Student'} · {form.college || 'Complete your profile'}</p>
         </div>
       </div>
 
@@ -79,11 +121,11 @@ export default function ProfilePage() {
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             {[
               { key: 'name', label: 'Full Name', type: 'text', placeholder: 'Alex Kumar' },
-              { key: 'email', label: 'Email', type: 'email', placeholder: 'alex@college.edu' },
+              { key: 'email', label: 'Email', type: 'email', placeholder: 'alex@gmail.com', disabled: true },
               { key: 'college', label: 'College', type: 'text', placeholder: 'BITS Pilani' },
               { key: 'section', label: 'Section', type: 'text', placeholder: 'A' },
-              { key: 'phone', label: 'Phone (for WhatsApp alerts)', type: 'text', placeholder: '+91 9876543210' },
-            ].map(({ key, label, type, placeholder }) => (
+              { key: 'phone', label: 'Phone', type: 'text', placeholder: '+91 9876543210' },
+            ].map(({ key, label, type, placeholder, disabled }) => (
               <div key={key} className={key === 'phone' ? 'sm:col-span-2' : ''}>
                 <label className="block text-[10px] uppercase tracking-widest text-[#6b7280] mb-1">{label}</label>
                 <input
@@ -91,51 +133,32 @@ export default function ProfilePage() {
                   value={(form as any)[key]}
                   onChange={e => setForm(p => ({ ...p, [key]: e.target.value }))}
                   placeholder={placeholder}
-                  className="w-full rounded-lg border border-white/[0.07] bg-[#0a0a0f] px-3 py-2 text-xs text-white placeholder:text-[#6b7280] outline-none focus:border-[#00e5ff]/40"
+                  disabled={disabled}
+                  className="w-full rounded-lg border border-white/[0.07] bg-[#0a0a0f] px-3 py-2 text-xs text-white placeholder:text-[#6b7280] outline-none focus:border-[#00e5ff]/40 disabled:opacity-50"
                 />
               </div>
             ))}
 
             <div>
               <label className="block text-[10px] uppercase tracking-widest text-[#6b7280] mb-1">Branch</label>
-              <select
-                value={form.branch}
-                onChange={e => setForm(p => ({ ...p, branch: e.target.value }))}
-                className="w-full rounded-lg border border-white/[0.07] bg-[#0a0a0f] px-3 py-2 text-xs text-white outline-none focus:border-[#00e5ff]/40"
-              >
+              <select value={form.branch} onChange={e => setForm(p => ({ ...p, branch: e.target.value }))}
+                className="w-full rounded-lg border border-white/[0.07] bg-[#0a0a0f] px-3 py-2 text-xs text-white outline-none focus:border-[#00e5ff]/40">
                 {BRANCHES.map(b => <option key={b} value={b}>{b}</option>)}
               </select>
             </div>
             <div>
               <label className="block text-[10px] uppercase tracking-widest text-[#6b7280] mb-1">Year</label>
-              <select
-                value={form.year}
-                onChange={e => setForm(p => ({ ...p, year: e.target.value }))}
-                className="w-full rounded-lg border border-white/[0.07] bg-[#0a0a0f] px-3 py-2 text-xs text-white outline-none focus:border-[#00e5ff]/40"
-              >
+              <select value={form.year} onChange={e => setForm(p => ({ ...p, year: e.target.value }))}
+                className="w-full rounded-lg border border-white/[0.07] bg-[#0a0a0f] px-3 py-2 text-xs text-white outline-none focus:border-[#00e5ff]/40">
                 {YEARS.map(y => <option key={y} value={y}>Year {y}</option>)}
               </select>
             </div>
             <div>
               <label className="block text-[10px] uppercase tracking-widest text-[#6b7280] mb-1">Semester</label>
-              <select
-                value={form.semester}
-                onChange={e => setForm(p => ({ ...p, semester: e.target.value }))}
-                className="w-full rounded-lg border border-white/[0.07] bg-[#0a0a0f] px-3 py-2 text-xs text-white outline-none focus:border-[#00e5ff]/40"
-              >
+              <select value={form.semester} onChange={e => setForm(p => ({ ...p, semester: e.target.value }))}
+                className="w-full rounded-lg border border-white/[0.07] bg-[#0a0a0f] px-3 py-2 text-xs text-white outline-none focus:border-[#00e5ff]/40">
                 {SEMESTERS.map(s => <option key={s} value={s}>Semester {s}</option>)}
               </select>
-            </div>
-
-            <div className="sm:col-span-2 flex items-center gap-3 rounded-lg border border-white/[0.07] px-4 py-3">
-              <input
-                type="checkbox"
-                id="isCR"
-                checked={form.isCR}
-                onChange={e => setForm(p => ({ ...p, isCR: e.target.checked }))}
-                className="accent-[#00e5ff]"
-              />
-              <label htmlFor="isCR" className="text-xs text-white cursor-pointer">I am the Class Representative (CR)</label>
             </div>
           </div>
 
@@ -152,6 +175,58 @@ export default function ProfilePage() {
 
         {/* Side cards */}
         <div className="space-y-4">
+          {/* College Email Verification */}
+          <div className="synapto-card p-4">
+            <div className="flex items-center gap-2 mb-3">
+              <Mail size={14} className="text-[#00e5ff]" />
+              <p className="label-upper">College Email</p>
+              {form.collegeEmailVerified && <CheckCircle size={12} className="text-[#22c55e] ml-auto" />}
+            </div>
+            {form.collegeEmailVerified ? (
+              <p className="text-xs text-[#22c55e]">{form.collegeEmail} verified</p>
+            ) : (
+              <div className="space-y-2">
+                <input
+                  type="email"
+                  placeholder="student@college.edu"
+                  value={form.collegeEmail}
+                  onChange={e => setForm(p => ({ ...p, collegeEmail: e.target.value }))}
+                  className="w-full rounded-lg border border-white/[0.07] bg-[#0a0a0f] px-3 py-2 text-xs text-white placeholder:text-[#6b7280] outline-none focus:border-[#00e5ff]/40"
+                />
+                {!collegeOtpSent ? (
+                  <button
+                    onClick={handleSendOtp}
+                    disabled={otpLoading || !form.collegeEmail}
+                    className="w-full rounded-lg bg-[#00e5ff]/10 border border-[#00e5ff]/20 py-2 text-xs text-[#00e5ff] hover:bg-[#00e5ff]/20 transition-colors disabled:opacity-40"
+                  >
+                    {otpLoading ? 'Sending…' : 'Send Verification OTP'}
+                  </button>
+                ) : (
+                  <div className="space-y-2">
+                    <input
+                      type="text"
+                      placeholder="Enter 6-digit OTP"
+                      value={collegeOtp}
+                      onChange={e => setCollegeOtp(e.target.value)}
+                      className="w-full rounded-lg border border-white/[0.07] bg-[#0a0a0f] px-3 py-2 text-xs text-white placeholder:text-[#6b7280] outline-none focus:border-[#00e5ff]/40"
+                    />
+                    <button
+                      onClick={handleVerifyOtp}
+                      disabled={otpLoading || !collegeOtp}
+                      className="w-full rounded-lg bg-[#22c55e]/10 border border-[#22c55e]/20 py-2 text-xs text-[#22c55e] hover:bg-[#22c55e]/20 transition-colors disabled:opacity-40"
+                    >
+                      {otpLoading ? 'Verifying…' : 'Verify OTP'}
+                    </button>
+                    <button onClick={() => { setCollegeOtpSent(false); setCollegeOtp('') }} className="text-[10px] text-[#6b7280] hover:text-white">
+                      Resend OTP
+                    </button>
+                  </div>
+                )}
+                {otpMsg && <p className={`text-[10px] ${otpMsg.includes('Failed') || otpMsg.includes('Invalid') ? 'text-[#ef4444]' : 'text-[#22c55e]'}`}>{otpMsg}</p>}
+              </div>
+            )}
+          </div>
+
           {/* Upgrade */}
           <div className="synapto-card p-4 border-[#a855f7]/20">
             <div className="flex items-center gap-2 mb-2">
@@ -173,10 +248,9 @@ export default function ProfilePage() {
               <p className="label-upper">Notifications</p>
             </div>
             {[
-              { label: 'Attendance alerts (WhatsApp)', field: 'whatsapp' as const },
-              { label: 'Deadline reminders', field: 'notifications' as const },
-              { label: 'Study pack ready', field: 'notifications' as const },
-              { label: 'Mass bunk polls', field: 'notifications' as const },
+              { label: 'Deadline reminders (email)', field: 'notifications' as const },
+              { label: 'Study pack ready (email)', field: 'notifications' as const },
+              { label: 'Attendance alerts (email)', field: 'notifications' as const },
             ].map(({ label, field }, i) => {
               const on = notif[field]
               return (
