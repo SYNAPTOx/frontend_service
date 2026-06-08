@@ -48,7 +48,7 @@ export default function ChatPage() {
         currentUserId.current = payload.userId || payload.id || payload.sub || 'mock-user-1'
       } catch { currentUserId.current = 'mock-user-1' }
     }
-    getChatRooms().then(r => { setRooms(r as Room[]); setLoading(false) })
+    getChatRooms().then(r => { setRooms(r as Room[]); }).catch(() => {}).finally(() => setLoading(false))
   }, [token])
 
   // Open WebSocket when activeRoom changes
