@@ -1,11 +1,12 @@
 "use client"
 
 import { useEffect, useState } from 'react'
-import { getUserMe, updateUserProfile } from '@/lib/api'
+import { getUserMe, updateUserProfile, getSettings, updateSettings } from '@/lib/api'
 import { useAuthStore } from '@/lib/store/authStore'
 import { User, Save, Zap, Bell, Shield } from 'lucide-react'
 
 interface Profile { name: string; email: string; college: string; branch: string; year: string; semester: string; section: string; isCR: boolean; phone: string }
+interface NotifSettings { notifications: boolean; whatsapp: boolean }
 
 const YEARS = ['1', '2', '3', '4']
 const SEMESTERS = ['1', '2', '3', '4', '5', '6', '7', '8']
@@ -16,8 +17,12 @@ export default function ProfilePage() {
   const [form, setForm] = useState<Profile>({ name: '', email: '', college: '', branch: '', year: '', semester: '', section: '', isCR: false, phone: '' })
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
+  const [notif, setNotif] = useState<NotifSettings>({ notifications: true, whatsapp: false })
 
   useEffect(() => {
+    getSettings().then((s: any) => {
+      if (s) setNotif({ notifications: s.notifications ?? true, whatsapp: s.whatsapp ?? false })
+    }).catch(() => {})
     getUserMe().then(p => {
       if (!p) return
       const profile = p as Profile
@@ -168,18 +173,28 @@ export default function ProfilePage() {
               <p className="label-upper">Notifications</p>
             </div>
             {[
-              { label: 'Attendance alerts (WhatsApp)', key: 'att' },
-              { label: 'Deadline reminders', key: 'dl' },
-              { label: 'Study pack ready', key: 'sp' },
-              { label: 'Mass bunk polls', key: 'mb' },
-            ].map(({ label, key }) => (
-              <div key={key} className="flex items-center justify-between py-1.5">
-                <span className="text-xs text-[#6b7280]">{label}</span>
-                <div className="h-4 w-7 rounded-full bg-[#00e5ff]/20 relative cursor-pointer">
-                  <div className="absolute right-0.5 top-0.5 h-3 w-3 rounded-full bg-[#00e5ff]" />
+              { label: 'Attendance alerts (WhatsApp)', field: 'whatsapp' as const },
+              { label: 'Deadline reminders', field: 'notifications' as const },
+              { label: 'Study pack ready', field: 'notifications' as const },
+              { label: 'Mass bunk polls', field: 'notifications' as const },
+            ].map(({ label, field }, i) => {
+              const on = notif[field]
+              return (
+                <div key={i} className="flex items-center justify-between py-1.5">
+                  <span className="text-xs text-[#6b7280]">{label}</span>
+                  <button
+                    onClick={async () => {
+                      const next = { ...notif, [field]: !notif[field] }
+                      setNotif(next)
+                      try { await updateSettings(next) } catch {}
+                    }}
+                    className={`h-4 w-7 rounded-full relative transition-colors ${on ? 'bg-[#00e5ff]/40' : 'bg-white/10'}`}
+                  >
+                    <div className={`absolute top-0.5 h-3 w-3 rounded-full transition-all ${on ? 'right-0.5 bg-[#00e5ff]' : 'left-0.5 bg-[#6b7280]'}`} />
+                  </button>
                 </div>
-              </div>
-            ))}
+              )
+            })}
           </div>
 
           {/* Security */}

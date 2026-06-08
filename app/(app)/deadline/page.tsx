@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useState } from 'react'
-import { getDeadlines, createDeadline, updateDeadline, deleteDeadline } from '@/lib/api'
+import { getDeadlines, createDeadline, updateDeadline, markDeadlineDone, deleteDeadline } from '@/lib/api'
 import { Flame, Plus, Calendar, CheckCircle, Clock, X, ChevronRight } from 'lucide-react'
 
 interface DayPlan { day: string; date: string; tasks: string[]; completed: boolean }
@@ -48,8 +48,10 @@ export default function DeadlinePage() {
   }
 
   const handleComplete = async (id: string) => {
-    await updateDeadline(id, { status: 'done' })
-    setDeadlines(prev => prev.map(d => d._id === id ? { ...d, status: 'done' as const } : d))
+    try {
+      await markDeadlineDone(id)
+      setDeadlines(prev => prev.map(d => d._id === id ? { ...d, status: 'done' as const } : d))
+    } catch {}
   }
 
   const handleDelete = async (id: string) => {

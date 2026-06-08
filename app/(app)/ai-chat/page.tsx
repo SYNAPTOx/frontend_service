@@ -35,13 +35,23 @@ export default function AIChatPage() {
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLTextAreaElement>(null)
 
-  useEffect(() => { loadHistory() }, [])
+  useEffect(() => { loadHistory(true) }, [])
   useEffect(() => { messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' }) }, [messages])
 
-  const loadHistory = async () => {
+  const loadHistory = async (autoResume = false) => {
     try {
       const data = await getChatHistory() as { sessions: Session[] }
-      setSessions(data.sessions || [])
+      const list = data.sessions || []
+      setSessions(list)
+      // On first load, automatically resume the most recent session
+      if (autoResume && list.length > 0) {
+        const recent = list[0]
+        setCurrentSessionId(recent._id)
+        try {
+          const full = await getChatSession(recent._id) as Session
+          setMessages(full.messages || [])
+        } catch {}
+      }
     } catch {}
   }
 
@@ -128,7 +138,7 @@ export default function AIChatPage() {
         return updated
       })
       setActiveTools([])
-      loadHistory()
+      loadHistory(false)
     } catch {
       setMessages(prev => {
         const updated = [...prev]

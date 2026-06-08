@@ -34,23 +34,39 @@ export default function AnalyticsPage() {
   const [trend, setTrend] = useState<TrendPoint[]>([])
   const [quizHistory, setQuizHistory] = useState<QuizResult[]>([])
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
-    Promise.all([getOverview(), getActivityHeatmap(), getAttendanceAnalytics(), getQuizAnalytics()]).then(
-      ([ov, hm, at, qz]) => {
+    Promise.all([getOverview(), getActivityHeatmap(), getAttendanceAnalytics(), getQuizAnalytics()])
+      .then(([ov, hm, at, qz]) => {
         setOverview(ov as Overview)
-        setHeatmap(hm as HeatmapDay[])
-        setTrend(at as TrendPoint[])
-        setQuizHistory(qz as QuizResult[])
-        setLoading(false)
-      }
-    )
+        setHeatmap((hm as HeatmapDay[]) ?? [])
+        setTrend((at as TrendPoint[]) ?? [])
+        setQuizHistory((qz as QuizResult[]) ?? [])
+      })
+      .catch((err) => setError(err?.message ?? 'Failed to load analytics'))
+      .finally(() => setLoading(false))
   }, [])
 
   if (loading) {
     return (
       <div className="flex h-full items-center justify-center">
         <div className="h-8 w-8 animate-spin rounded-full border-2 border-[#00e5ff] border-t-transparent" />
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <div className="flex h-full flex-col items-center justify-center gap-3 text-center">
+        <p className="text-sm font-semibold text-[#ef4444]">Failed to load analytics</p>
+        <p className="text-xs text-[#6b7280]">{error}</p>
+        <button
+          onClick={() => { setError(null); setLoading(true); window.location.reload() }}
+          className="mt-2 rounded-lg border border-[#00e5ff33] px-4 py-1.5 text-xs text-[#00e5ff] hover:bg-[#00e5ff11]"
+        >
+          Retry
+        </button>
       </div>
     )
   }
