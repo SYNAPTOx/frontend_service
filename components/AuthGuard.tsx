@@ -29,31 +29,25 @@ export default function AuthGuard({ children }: { children: React.ReactNode }) {
 
     // Profile completion gate — skip when already on /profile
     if (pathname !== '/profile' && !isProfileComplete(loadedUser)) {
-      // Fetch fresh profile from server to ensure accuracy
       fetch('/api/user/me', {
         headers: { Authorization: `Bearer ${token}` },
       })
         .then(r => r.ok ? r.json() : null)
         .then(profile => {
           if (profile) {
-            // Merge server data into stored user
             const merged = { ...(loadedUser ?? {}), ...profile }
             setAuth(merged, token)
             if (!isProfileComplete(merged)) {
               router.replace('/profile')
-              return
             }
           } else if (!isProfileComplete(loadedUser)) {
             router.replace('/profile')
-            return
           }
           setChecking(false)
         })
         .catch(() => {
-          // If network error, fall back to locally stored data
           if (!isProfileComplete(loadedUser)) {
             router.replace('/profile')
-            return
           }
           setChecking(false)
         })
