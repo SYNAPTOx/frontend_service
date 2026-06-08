@@ -37,14 +37,18 @@ export default function AnalyticsPage() {
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
-    Promise.all([getOverview(), getActivityHeatmap(), getAttendanceAnalytics(), getQuizAnalytics()])
+    Promise.allSettled([getOverview(), getActivityHeatmap(), getAttendanceAnalytics(), getQuizAnalytics()])
       .then(([ov, hm, at, qz]) => {
-        setOverview(ov as Overview)
-        setHeatmap((hm as HeatmapDay[]) ?? [])
-        setTrend((at as TrendPoint[]) ?? [])
-        setQuizHistory((qz as QuizResult[]) ?? [])
+        if (ov.status === 'fulfilled') setOverview(ov.value as Overview)
+        setHeatmap(hm.status === 'fulfilled' ? ((hm.value as HeatmapDay[]) ?? []) : [])
+        setTrend(at.status === 'fulfilled' ? ((at.value as TrendPoint[]) ?? []) : [])
+        setQuizHistory(qz.status === 'fulfilled' ? ((qz.value as QuizResult[]) ?? []) : [])
+
+        const failures = [ov, hm, at, qz].filter(r => r.status === 'rejected')
+        if (failures.length === 4) {
+          setError((failures[0] as PromiseRejectedResult).reason?.message ?? 'Failed to load analytics')
+        }
       })
-      .catch((err) => setError(err?.message ?? 'Failed to load analytics'))
       .finally(() => setLoading(false))
   }, [])
 
