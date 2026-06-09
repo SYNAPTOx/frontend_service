@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from 'react'
+import { Suspense, useState, useEffect } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { Upload, Plus, Trash2, Check, FileText } from 'lucide-react'
 import { uploadTimetable, updateTimetable, getUserMe, getTimetable } from '@/lib/api'
@@ -15,7 +15,7 @@ interface TimetableData {
   grid: Grid
 }
 
-export default function UploadPage() {
+function UploadPageInner() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const prefill = searchParams.get('prefill') === 'true'
@@ -230,7 +230,7 @@ export default function UploadPage() {
       {/* Header */}
       <div className="mb-5 flex items-start justify-between gap-4">
         <div>
-          <p className="label-upper">Step 2 of 2</p>
+          <p className="label-upper">{prefill ? 'Edit Timetable' : 'Step 2 of 2'}</p>
           <h1 className="mt-0.5 text-2xl font-black uppercase tracking-tight text-white">
             REVIEW & <span className="text-[#00e5ff]">EDIT</span>
           </h1>
@@ -360,5 +360,17 @@ export default function UploadPage() {
         </div>
       )}
     </div>
+  )
+}
+
+export default function UploadPage() {
+  return (
+    <Suspense fallback={
+      <div className="flex h-full items-center justify-center">
+        <div className="h-8 w-8 animate-spin rounded-full border-2 border-[#00e5ff] border-t-transparent" />
+      </div>
+    }>
+      <UploadPageInner />
+    </Suspense>
   )
 }
