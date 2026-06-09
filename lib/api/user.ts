@@ -38,8 +38,13 @@ export const updateCodingProfiles = (data: {
   github?: string; linkedin?: string; leetcode?: string; codeforces?: string; hackerrank?: string
 }) => USE_MOCK ? Promise.resolve() : http.put('/api/user/profile', { codingProfiles: data })
 
-export const updateIdCard = (data: { idCardFront?: string; idCardBack?: string }) =>
-  USE_MOCK ? Promise.resolve() : http.put('/api/user/profile', data)
+export const uploadIdCardImage = (file: File, side: 'front' | 'back') => {
+  if (USE_MOCK) return Promise.resolve({ url: '' })
+  const formData = new FormData()
+  formData.append('image', file)
+  formData.append('side', side)
+  return http.postForm<{ url: string }>('/api/user/id-card', formData)
+}
 
 // Alias used by profile page
 export const updateUserProfile = updateProfile

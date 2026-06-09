@@ -1,10 +1,10 @@
 "use client"
 
 import { useEffect, useRef, useState } from 'react'
-import { getUserMe, updateIdCard } from '@/lib/api'
+import { getUserMe, uploadIdCardImage } from '@/lib/api'
 import { Upload, RotateCcw, Save, Loader2, CreditCard, Info } from 'lucide-react'
 
-async function compressImage(file: File, maxWidth = 900, quality = 0.75): Promise<string> {
+async function compressToBlob(file: File, maxWidth = 1200, quality = 0.8): Promise<Blob> {
   return new Promise((resolve, reject) => {
     const img = new Image()
     const reader = new FileReader()
@@ -15,9 +15,11 @@ async function compressImage(file: File, maxWidth = 900, quality = 0.75): Promis
         const h = Math.round(img.height * scale)
         const canvas = document.createElement('canvas')
         canvas.width = w; canvas.height = h
-        const ctx = canvas.getContext('2d')!
-        ctx.drawImage(img, 0, 0, w, h)
-        resolve(canvas.toDataURL('image/jpeg', quality))
+        canvas.getContext('2d')!.drawImage(img, 0, 0, w, h)
+        canvas.toBlob(blob => {
+          if (blob) resolve(blob)
+          else reject(new Error('Compression failed'))
+        }, 'image/jpeg', quality)
       }
       img.onerror = reject
       img.src = e.target?.result as string
@@ -28,8 +30,16 @@ async function compressImage(file: File, maxWidth = 900, quality = 0.75): Promis
 }
 
 export default function IdCardPage() {
-  const [front, setFront] = useState('')
-  const [back, setBack]   = useState('')
+  // S3 URLs loaded from profile (for display when no pending upload)
+  const [frontUrl, setFrontUrl] = useState('')
+  const [backUrl, setBackUrl]   = useState('')
+  // Pending blobs — compressed locally, not yet uploaded
+  const [frontBlob, setFrontBlob] = useState<Blob | null>(null)
+  const [backBlob, setBackBlob]   = useState<Blob | null>(null)
+  // Object URLs for instant preview of pending blobs
+  const [frontPreview, setFrontPreview] = useState('')
+  const [backPreview, setBackPreview]   = useState('')
+
   const [flipped, setFlipped] = useState(false)
   const [saving, setSaving]   = useState(false)
   const [saved, setSaved]     = useState(false)
@@ -38,30 +48,51 @@ export default function IdCardPage() {
 
   useEffect(() => {
     getUserMe().then((u: any) => {
-      if (u?.idCardFront) setFront(u.idCardFront)
-      if (u?.idCardBack)  setBack(u.idCardBack)
+      if (u?.idCardFront) setFrontUrl(u.idCardFront)
+      if (u?.idCardBack)  setBackUrl(u.idCardBack)
     }).catch(() => {})
   }, [])
 
   const handleFile = async (file: File, side: 'front' | 'back') => {
     try {
-      const compressed = await compressImage(file)
-      if (side === 'front') setFront(compressed)
-      else setBack(compressed)
+      const blob = await compressToBlob(file)
+      const preview = URL.createObjectURL(blob)
+      if (side === 'front') {
+        setFrontBlob(blob)
+        setFrontPreview(preview)
+      } else {
+        setBackBlob(blob)
+        setBackPreview(preview)
+      }
     } catch {}
   }
 
   const handleSave = async () => {
     setSaving(true)
     try {
-      await updateIdCard({ idCardFront: front, idCardBack: back })
+      if (frontBlob) {
+        const file = new File([frontBlob], 'front.jpg', { type: 'image/jpeg' })
+        const result = await uploadIdCardImage(file, 'front') as { url: string }
+        setFrontUrl(result.url)
+        setFrontBlob(null)
+        setFrontPreview('')
+      }
+      if (backBlob) {
+        const file = new File([backBlob], 'back.jpg', { type: 'image/jpeg' })
+        const result = await uploadIdCardImage(file, 'back') as { url: string }
+        setBackUrl(result.url)
+        setBackBlob(null)
+        setBackPreview('')
+      }
       setSaved(true)
       setTimeout(() => setSaved(false), 3000)
     } catch {}
     setSaving(false)
   }
 
-  const hasAny = front || back
+  const frontSrc = frontPreview || frontUrl
+  const backSrc  = backPreview  || backUrl
+  const hasPending = !!(frontBlob || backBlob)
 
   return (
     <div className="min-h-full bg-[#0a0a0f] p-6 space-y-6">
@@ -78,8 +109,7 @@ export default function IdCardPage() {
       <div className="flex items-start gap-2 rounded-lg border border-[#a855f7]/20 bg-[#a855f7]/5 px-4 py-3">
         <Info size={13} className="text-[#a855f7] shrink-0 mt-0.5" />
         <p className="text-[10px] text-[#a855f7]">
-          Images are stored securely in your account. Compress them before uploading for best performance.
-          Never share your ID card publicly — this page is only visible to you.
+          Images are stored securely in S3 and linked to your account. Never share your ID card publicly — this page is only visible to you.
         </p>
       </div>
 
@@ -107,16 +137,15 @@ export default function IdCardPage() {
                 className="absolute inset-0 rounded-2xl overflow-hidden border border-white/[0.1] bg-[#111118]"
                 style={{ backfaceVisibility: 'hidden' }}
               >
-                {front ? (
+                {frontSrc ? (
                   // eslint-disable-next-line @next/next/no-img-element
-                  <img src={front} alt="ID Front" className="w-full h-full object-cover" />
+                  <img src={frontSrc} alt="ID Front" className="w-full h-full object-cover" />
                 ) : (
                   <div className="flex h-full flex-col items-center justify-center gap-3 text-[#6b7280]">
                     <CreditCard size={36} />
                     <p className="text-xs">Front side — upload below</p>
                   </div>
                 )}
-                {/* Flip hint overlay */}
                 <div className="absolute bottom-2 right-2 rounded-full bg-black/50 px-2 py-0.5 text-[9px] text-white/60">
                   Front · tap to flip
                 </div>
@@ -127,9 +156,9 @@ export default function IdCardPage() {
                 className="absolute inset-0 rounded-2xl overflow-hidden border border-white/[0.1] bg-[#111118]"
                 style={{ backfaceVisibility: 'hidden', transform: 'rotateY(180deg)' }}
               >
-                {back ? (
+                {backSrc ? (
                   // eslint-disable-next-line @next/next/no-img-element
-                  <img src={back} alt="ID Back" className="w-full h-full object-cover" />
+                  <img src={backSrc} alt="ID Back" className="w-full h-full object-cover" />
                 ) : (
                   <div className="flex h-full flex-col items-center justify-center gap-3 text-[#6b7280]">
                     <CreditCard size={36} />
@@ -169,11 +198,11 @@ export default function IdCardPage() {
             <button
               onClick={() => frontRef.current?.click()}
               className={`w-full flex items-center justify-center gap-2 rounded-xl border-2 border-dashed py-6 text-xs transition-colors ${
-                front ? 'border-[#00e5ff]/40 text-[#00e5ff]' : 'border-white/[0.08] text-[#6b7280] hover:border-white/20'
+                frontSrc ? 'border-[#00e5ff]/40 text-[#00e5ff]' : 'border-white/[0.08] text-[#6b7280] hover:border-white/20'
               }`}
             >
               <Upload size={14} />
-              {front ? 'Front uploaded — click to replace' : 'Choose front image'}
+              {frontBlob ? 'Front ready — click to replace' : frontUrl ? 'Front uploaded — click to replace' : 'Choose front image'}
             </button>
           </div>
 
@@ -190,26 +219,26 @@ export default function IdCardPage() {
             <button
               onClick={() => backRef.current?.click()}
               className={`w-full flex items-center justify-center gap-2 rounded-xl border-2 border-dashed py-6 text-xs transition-colors ${
-                back ? 'border-[#a855f7]/40 text-[#a855f7]' : 'border-white/[0.08] text-[#6b7280] hover:border-white/20'
+                backSrc ? 'border-[#a855f7]/40 text-[#a855f7]' : 'border-white/[0.08] text-[#6b7280] hover:border-white/20'
               }`}
             >
               <Upload size={14} />
-              {back ? 'Back uploaded — click to replace' : 'Choose back image'}
+              {backBlob ? 'Back ready — click to replace' : backUrl ? 'Back uploaded — click to replace' : 'Choose back image'}
             </button>
           </div>
 
-          {/* Save */}
-          {hasAny && (
+          {/* Save — only when there are pending uploads */}
+          {hasPending && (
             <button
               onClick={handleSave}
               disabled={saving}
               className="w-full flex items-center justify-center gap-2 rounded-lg bg-[#00e5ff] py-3 text-[11px] font-black uppercase tracking-widest text-black transition-opacity hover:opacity-90 disabled:opacity-50"
             >
               {saving ? <Loader2 size={13} className="animate-spin" /> : <Save size={13} />}
-              {saving ? 'Saving…' : saved ? 'Saved!' : 'Save ID Card'}
+              {saving ? 'Uploading to S3…' : saved ? 'Saved!' : 'Save ID Card'}
             </button>
           )}
-          {saved && <p className="text-xs text-[#22c55e]">ID card saved to your account</p>}
+          {saved && <p className="text-xs text-[#22c55e]">ID card saved to S3</p>}
 
           {/* Tips */}
           <div className="synapto-card p-4 space-y-2">
@@ -217,7 +246,7 @@ export default function IdCardPage() {
             <ul className="space-y-1.5 text-[10px] text-[#6b7280]">
               <li>· Take the photo in good lighting</li>
               <li>· Use portrait orientation for taller ID cards</li>
-              <li>· Images are automatically compressed</li>
+              <li>· Images are compressed before upload</li>
               <li>· Show this page to bypass physical card checks</li>
             </ul>
           </div>
