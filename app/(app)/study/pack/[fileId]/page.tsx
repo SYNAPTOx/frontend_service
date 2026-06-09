@@ -199,9 +199,14 @@ export default function StudyPackPage() {
 
   const handleSubmitQuiz = async () => {
     if (!pack?.quiz) return
-    const answers = selected.map((s, i) => ({ questionIndex: i, selectedOption: s ?? -1 }))
-    const result = await submitQuiz(fileId, answers) as any
-    setScore(result.score ?? selected.filter((s, i) => s === pack.quiz![i].correctIndex).length)
+    const localScore = selected.filter((s, i) => s === pack.quiz![i].correctIndex).length
+    try {
+      const answers = selected.map((s, i) => ({ questionIndex: i, selectedOption: s ?? -1 }))
+      const result = await submitQuiz(fileId, answers) as any
+      setScore(result?.score ?? localScore)
+    } catch {
+      setScore(localScore)
+    }
     setSubmitted(true)
   }
 

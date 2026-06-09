@@ -5,21 +5,23 @@ import { usePathname, useRouter } from 'next/navigation'
 import {
   Home, ClipboardCheck, FolderOpen, Brain,
   Flame, BarChart2, Table2, MessageSquare,
-  User, LogOut, Zap,
+  User, LogOut, Code2, CreditCard,
 } from 'lucide-react'
 import { useAuthStore } from '@/lib/store/authStore'
 import ThemeToggle from './ThemeToggle'
 
 const NAV_ITEMS = [
-  { label: 'Home',       href: '/dashboard',  icon: Home },
-  { label: 'Attendance', href: '/attendance', icon: ClipboardCheck },
-  { label: 'Study Hub',  href: '/study',      icon: FolderOpen },
-  { label: 'AI Brain',   href: '/ai-chat',    icon: Brain },
-  { label: 'Deadlines',  href: '/deadline',   icon: Flame },
-  { label: 'Analytics',  href: '/analytics',  icon: BarChart2 },
-  { label: 'Timetable',  href: '/timetable',  icon: Table2 },
-  { label: 'Chat',       href: '/chat',       icon: MessageSquare },
-  { label: 'Profile',    href: '/profile',    icon: User },
+  { label: 'Home',       href: '/dashboard',       icon: Home },
+  { label: 'Attendance', href: '/attendance',      icon: ClipboardCheck },
+  { label: 'Study Hub',  href: '/study',           icon: FolderOpen },
+  { label: 'AI Brain',   href: '/ai-chat',         icon: Brain },
+  { label: 'Deadlines',  href: '/deadline',        icon: Flame },
+  { label: 'Analytics',  href: '/analytics',       icon: BarChart2 },
+  { label: 'Timetable',  href: '/timetable',       icon: Table2 },
+  { label: 'Chat',       href: '/chat',            icon: MessageSquare },
+  { label: 'Dev Profiles', href: '/coding-profiles', icon: Code2 },
+  { label: 'ID Card',    href: '/id-card',         icon: CreditCard },
+  { label: 'Profile',    href: '/profile',         icon: User },
 ]
 
 export default function Sidebar() {
@@ -85,12 +87,6 @@ export default function Sidebar() {
           </div>
           <ThemeToggle />
         </div>
-
-        {/* Upgrade button */}
-        <button className="mb-2 w-full rounded-lg bg-[#00e5ff] py-1.5 text-[10px] font-black uppercase tracking-widest text-black transition-opacity hover:opacity-90">
-          <Zap size={10} className="mr-1 inline" />
-          Upgrade to Pro
-        </button>
 
         {/* Logout */}
         <button

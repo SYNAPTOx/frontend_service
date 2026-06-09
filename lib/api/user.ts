@@ -34,5 +34,12 @@ export const sendCollegeEmailOtp = (collegeEmail: string) =>
 export const confirmCollegeEmailOtp = (otp: string) =>
   http.post('/api/user/verify-college-email/confirm', { otp })
 
+export const updateCodingProfiles = (data: {
+  github?: string; linkedin?: string; leetcode?: string; codeforces?: string; hackerrank?: string
+}) => USE_MOCK ? Promise.resolve() : http.put('/api/user/profile', { codingProfiles: data })
+
+export const updateIdCard = (data: { idCardFront?: string; idCardBack?: string }) =>
+  USE_MOCK ? Promise.resolve() : http.put('/api/user/profile', data)
+
 // Alias used by profile page
 export const updateUserProfile = updateProfile

@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { getTimetable, getTimetableLog } from '@/lib/api'
-import { Upload, History, AlertTriangle } from 'lucide-react'
+import { Upload, History, AlertTriangle, Pencil } from 'lucide-react'
 
 interface TimetableData {
   days: string[]
@@ -89,9 +89,14 @@ export default function TimetablePage() {
             Today is <span className="text-white font-semibold">{today}</span>
           </p>
         </div>
-        <Link href="/timetable/upload" className="inline-flex items-center gap-2 rounded-lg bg-[#00e5ff] px-4 py-2 text-xs font-black uppercase tracking-widest text-black hover:opacity-90">
-          <Upload size={12} /> Update
-        </Link>
+        <div className="flex gap-2">
+          <Link href="/timetable/upload?prefill=true" className="inline-flex items-center gap-2 rounded-lg border border-[#00e5ff]/30 bg-[#00e5ff]/10 px-3 py-2 text-xs font-black uppercase tracking-widest text-[#00e5ff] hover:bg-[#00e5ff]/20 transition-colors">
+            <Pencil size={11} /> Edit
+          </Link>
+          <Link href="/timetable/upload" className="inline-flex items-center gap-2 rounded-lg bg-[#00e5ff] px-3 py-2 text-xs font-black uppercase tracking-widest text-black hover:opacity-90">
+            <Upload size={11} /> Upload New
+          </Link>
+        </div>
       </div>
 
       {/* Community warning */}

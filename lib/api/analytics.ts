@@ -23,8 +23,20 @@ export const getActivityHeatmap = async () => {
   if (USE_MOCK) return mock.getActivityHeatmap()
   const data = await http.get<any>('/api/analytics/activity')
   const raw: any[] = data?.heatmap ?? []
-  // Page expects [{ date, count }]
-  return raw.map((d) => ({ date: d.date as string, count: (d.totalActivity ?? 0) as number }))
+
+  // Build lookup from returned data
+  const byDate: Record<string, number> = {}
+  raw.forEach(d => { byDate[d.date] = d.totalActivity ?? 0 })
+
+  // Always return a full 30-day window (fills zeros for days with no activity)
+  const result: { date: string; count: number }[] = []
+  for (let i = 29; i >= 0; i--) {
+    const d = new Date()
+    d.setDate(d.getDate() - i)
+    const key = d.toISOString().split('T')[0]
+    result.push({ date: key, count: byDate[key] ?? 0 })
+  }
+  return result
 }
 
 export const getAttendanceAnalytics = async () => {

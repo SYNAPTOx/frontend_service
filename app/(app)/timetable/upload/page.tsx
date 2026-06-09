@@ -1,9 +1,9 @@
 "use client"
 
 import { useState, useEffect } from 'react'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { Upload, Plus, Trash2, Check, FileText } from 'lucide-react'
-import { uploadTimetable, updateTimetable, getUserMe } from '@/lib/api'
+import { uploadTimetable, updateTimetable, getUserMe, getTimetable } from '@/lib/api'
 
 type Grid = Record<string, Record<string, string>>
 
@@ -17,6 +17,8 @@ interface TimetableData {
 
 export default function UploadPage() {
   const router = useRouter()
+  const searchParams = useSearchParams()
+  const prefill = searchParams.get('prefill') === 'true'
   const [phase, setPhase] = useState<'upload' | 'edit' | 'saved'>('upload')
 
   // Upload form — defaults will be overwritten by profile data
@@ -27,12 +29,29 @@ export default function UploadPage() {
   const [uploadError, setUploadError] = useState('')
 
   // Pre-populate from user profile so section/semester always matches
+  // If prefill=true, also load existing timetable and skip upload phase
   useEffect(() => {
     getUserMe().then((u: any) => {
       if (u?.section) setSection(u.section)
       if (u?.semester) setSemester(String(u.semester))
     }).catch(() => {})
-  }, [])
+
+    if (prefill) {
+      getTimetable().then((tt: any) => {
+        if (!tt) return
+        const days: string[] = tt.days ?? ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday']
+        const timeSlots: string[] = tt.timeSlots ?? []
+        const grid: Grid = {}
+        days.forEach((d: string) => { grid[d] = tt.grid?.[d] ?? {} })
+        getUserMe().then((u: any) => {
+          setData({ section: u?.section ?? '', semester: String(u?.semester ?? ''), days, timeSlots, grid })
+        }).catch(() => {
+          setData({ section: '', semester: '', days, timeSlots, grid })
+        })
+        setPhase('edit')
+      }).catch(() => {})
+    }
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   // Editable timetable
   const [data, setData] = useState<TimetableData | null>(null)

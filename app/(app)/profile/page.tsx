@@ -3,10 +3,14 @@
 import { useEffect, useState } from 'react'
 import { getUserMe, updateUserProfile, getSettings, updateSettings, sendCollegeEmailOtp, confirmCollegeEmailOtp } from '@/lib/api'
 import { useAuthStore } from '@/lib/store/authStore'
-import { User, Save, Zap, Bell, Shield, CheckCircle, Mail } from 'lucide-react'
+import { User, Save, Bell, Shield, CheckCircle, Mail } from 'lucide-react'
 
 interface Profile { name: string; email: string; college: string; branch: string; year: string; semester: string; section: string; isCR: boolean; phone: string; collegeEmail: string; collegeEmailVerified: boolean }
-interface NotifSettings { notifications: boolean; whatsapp: boolean }
+interface NotifSettings {
+  deadlineNotifications: boolean
+  studyPackNotifications: boolean
+  attendanceNotifications: boolean
+}
 
 const YEARS = ['1', '2', '3', '4']
 const SEMESTERS = ['1', '2', '3', '4', '5', '6', '7', '8']
@@ -17,7 +21,7 @@ export default function ProfilePage() {
   const [form, setForm] = useState<Profile>({ name: '', email: '', college: '', branch: '', year: '', semester: '', section: '', isCR: false, phone: '', collegeEmail: '', collegeEmailVerified: false })
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
-  const [notif, setNotif] = useState<NotifSettings>({ notifications: true, whatsapp: false })
+  const [notif, setNotif] = useState<NotifSettings>({ deadlineNotifications: true, studyPackNotifications: true, attendanceNotifications: true })
   const [collegeOtpSent, setCollegeOtpSent] = useState(false)
   const [collegeOtp, setCollegeOtp] = useState('')
   const [otpLoading, setOtpLoading] = useState(false)
@@ -25,7 +29,11 @@ export default function ProfilePage() {
 
   useEffect(() => {
     getSettings().then((s: any) => {
-      if (s) setNotif({ notifications: s.notifications ?? true, whatsapp: s.whatsapp ?? false })
+      if (s) setNotif({
+        deadlineNotifications:  s.deadlineNotifications  ?? true,
+        studyPackNotifications: s.studyPackNotifications ?? true,
+        attendanceNotifications: s.attendanceNotifications ?? true,
+      })
     }).catch(() => {})
     getUserMe().then(p => {
       if (!p) return
@@ -227,34 +235,20 @@ export default function ProfilePage() {
             )}
           </div>
 
-          {/* Upgrade */}
-          <div className="synapto-card p-4 border-[#a855f7]/20">
-            <div className="flex items-center gap-2 mb-2">
-              <Zap size={14} className="text-[#a855f7]" />
-              <p className="text-xs font-black text-[#a855f7] uppercase tracking-widest">Pro Plan</p>
-            </div>
-            <p className="text-[10px] text-[#6b7280] mb-3">
-              Unlimited AI sessions, video transcription, priority processing, advanced analytics
-            </p>
-            <button className="w-full rounded-lg bg-[#a855f7] py-2 text-[10px] font-black uppercase tracking-widest text-white hover:opacity-90 transition-opacity">
-              Upgrade to Pro
-            </button>
-          </div>
-
           {/* Notifications */}
           <div className="synapto-card p-4">
             <div className="flex items-center gap-2 mb-3">
               <Bell size={14} className="text-[#00e5ff]" />
               <p className="label-upper">Notifications</p>
             </div>
-            {[
-              { label: 'Deadline reminders (email)', field: 'notifications' as const },
-              { label: 'Study pack ready (email)', field: 'notifications' as const },
-              { label: 'Attendance alerts (email)', field: 'notifications' as const },
-            ].map(({ label, field }, i) => {
+            {([
+              { label: 'Deadline reminders (email)', field: 'deadlineNotifications' as const },
+              { label: 'Study pack ready (email)',   field: 'studyPackNotifications' as const },
+              { label: 'Attendance alerts (email)',  field: 'attendanceNotifications' as const },
+            ] as const).map(({ label, field }) => {
               const on = notif[field]
               return (
-                <div key={i} className="flex items-center justify-between py-1.5">
+                <div key={field} className="flex items-center justify-between py-1.5">
                   <span className="text-xs text-[#6b7280]">{label}</span>
                   <button
                     onClick={async () => {
