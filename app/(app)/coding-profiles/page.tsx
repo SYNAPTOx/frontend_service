@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { getUserMe, updateCodingProfiles } from '@/lib/api'
-import { Github, Linkedin, Code2, ExternalLink, Copy, Check, Save, Loader2 } from 'lucide-react'
+import { GitBranch, Briefcase, Code2, ExternalLink, Copy, Check, Save, Loader2 } from 'lucide-react'
 
 interface CodingProfiles {
   github: string
@@ -29,7 +29,7 @@ const PLATFORMS = [
     label: 'GitHub',
     placeholder: 'https://github.com/username',
     color: '#e5e7eb',
-    icon: Github,
+    icon: GitBranch,
     base: 'https://github.com/',
   },
   {
@@ -37,7 +37,7 @@ const PLATFORMS = [
     label: 'LinkedIn',
     placeholder: 'https://linkedin.com/in/username',
     color: '#0a66c2',
-    icon: Linkedin,
+    icon: Briefcase,
     base: 'https://linkedin.com/in/',
   },
   {
