@@ -43,6 +43,7 @@ export default function IdCardPage() {
   const [flipped, setFlipped] = useState(false)
   const [saving, setSaving]   = useState(false)
   const [saved, setSaved]     = useState(false)
+  const [error, setError]     = useState('')
   const frontRef = useRef<HTMLInputElement>(null)
   const backRef  = useRef<HTMLInputElement>(null)
 
@@ -69,6 +70,7 @@ export default function IdCardPage() {
 
   const handleSave = async () => {
     setSaving(true)
+    setError('')
     try {
       if (frontBlob) {
         const file = new File([frontBlob], 'front.jpg', { type: 'image/jpeg' })
@@ -86,7 +88,9 @@ export default function IdCardPage() {
       }
       setSaved(true)
       setTimeout(() => setSaved(false), 3000)
-    } catch {}
+    } catch (e: any) {
+      setError(e?.message || 'Upload failed — please try again')
+    }
     setSaving(false)
   }
 
@@ -239,6 +243,7 @@ export default function IdCardPage() {
             </button>
           )}
           {saved && <p className="text-xs text-[#22c55e]">ID card saved to S3</p>}
+          {error && <p className="text-xs text-[#ef4444]">{error}</p>}
 
           {/* Tips */}
           <div className="synapto-card p-4 space-y-2">
