@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import { getUserMe, updateUserProfile, getSettings, updateSettings, sendCollegeEmailOtp, confirmCollegeEmailOtp } from '@/lib/api'
 import { useAuthStore } from '@/lib/store/authStore'
 import { User, Save, Bell, Shield, CheckCircle, Mail } from 'lucide-react'
+import { COLLEGES, BRANCHES, YEARS } from '@/lib/constants/education'
 
 interface Profile { name: string; email: string; college: string; branch: string; year: string; semester: string; section: string; isCR: boolean; phone: string; collegeEmail: string; collegeEmailVerified: boolean }
 interface NotifSettings {
@@ -12,9 +13,7 @@ interface NotifSettings {
   attendanceNotifications: boolean
 }
 
-const YEARS = ['1', '2', '3', '4']
 const SEMESTERS = ['1', '2', '3', '4', '5', '6', '7', '8']
-const BRANCHES = ['Computer Science', 'Information Technology', 'Electronics', 'Mechanical', 'Civil']
 
 export default function ProfilePage() {
   const { user, setAuth, token } = useAuthStore()
@@ -57,7 +56,7 @@ export default function ProfilePage() {
   const handleSave = async () => {
     setSaving(true)
     try {
-      await updateUserProfile({ ...form, year: form.year ? Number(form.year) : undefined, semester: form.semester ? Number(form.semester) : undefined })
+      await updateUserProfile({ ...form, section: form.section.trim().toUpperCase(), year: form.year ? Number(form.year) : undefined, semester: form.semester ? Number(form.semester) : undefined })
       setAuth({
         ...(user ?? {}),
         name: form.name,
@@ -130,8 +129,6 @@ export default function ProfilePage() {
             {[
               { key: 'name', label: 'Full Name', type: 'text', placeholder: 'Alex Kumar' },
               { key: 'email', label: 'Email', type: 'email', placeholder: 'alex@gmail.com', disabled: true },
-              { key: 'college', label: 'College', type: 'text', placeholder: 'BITS Pilani' },
-              { key: 'section', label: 'Section', type: 'text', placeholder: 'A' },
               { key: 'phone', label: 'Phone', type: 'text', placeholder: '+91 9876543210' },
             ].map(({ key, label, type, placeholder, disabled }) => (
               <div key={key} className={key === 'phone' ? 'sm:col-span-2' : ''}>
@@ -147,10 +144,23 @@ export default function ProfilePage() {
               </div>
             ))}
 
+            <div className="sm:col-span-2">
+              <label className="block text-[10px] uppercase tracking-widest text-[#6b7280] mb-1">College</label>
+              <select value={form.college} onChange={e => setForm(p => ({ ...p, college: e.target.value }))}
+                className="w-full rounded-lg border border-white/[0.07] bg-[#0a0a0f] px-3 py-2 text-xs text-white outline-none focus:border-[#00e5ff]/40">
+                <option value="">Select your college…</option>
+                {COLLEGES.map(g => (
+                  <optgroup key={g.group} label={g.group}>
+                    {g.options.map(c => <option key={c} value={c}>{c}</option>)}
+                  </optgroup>
+                ))}
+              </select>
+            </div>
             <div>
               <label className="block text-[10px] uppercase tracking-widest text-[#6b7280] mb-1">Branch</label>
               <select value={form.branch} onChange={e => setForm(p => ({ ...p, branch: e.target.value }))}
                 className="w-full rounded-lg border border-white/[0.07] bg-[#0a0a0f] px-3 py-2 text-xs text-white outline-none focus:border-[#00e5ff]/40">
+                <option value="">Select your branch…</option>
                 {BRANCHES.map(b => <option key={b} value={b}>{b}</option>)}
               </select>
             </div>
@@ -167,6 +177,17 @@ export default function ProfilePage() {
                 className="w-full rounded-lg border border-white/[0.07] bg-[#0a0a0f] px-3 py-2 text-xs text-white outline-none focus:border-[#00e5ff]/40">
                 {SEMESTERS.map(s => <option key={s} value={s}>Semester {s}</option>)}
               </select>
+            </div>
+            <div>
+              <label className="block text-[10px] uppercase tracking-widest text-[#6b7280] mb-1">Section</label>
+              <input
+                type="text"
+                value={form.section}
+                onChange={e => setForm(p => ({ ...p, section: e.target.value.toUpperCase() }))}
+                placeholder="A"
+                maxLength={5}
+                className="w-full rounded-lg border border-white/[0.07] bg-[#0a0a0f] px-3 py-2 text-xs text-white placeholder:text-[#6b7280] outline-none focus:border-[#00e5ff]/40"
+              />
             </div>
           </div>
 

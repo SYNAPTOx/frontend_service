@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation'
 import { signupUser, googleLogin } from '@/lib/api'
 import { useAuthStore } from '@/lib/store/authStore'
 import { GoogleLogin } from '@react-oauth/google'
+import { COLLEGES, BRANCHES, YEARS } from '@/lib/constants/education'
 
 const inputCls = "w-full rounded-lg border border-white/[0.07] bg-[#0a0a0f] px-3 py-2.5 text-sm text-white placeholder:text-[#6b7280] outline-none focus:border-[#00e5ff]/40 transition-colors"
 
@@ -24,7 +25,7 @@ export default function SignupPage() {
     setLoading(true)
     setMsg('')
     try {
-      const data = await signupUser({ ...form, year: Number(form.year) }) as any
+      const data = await signupUser({ ...form, section: form.section.trim().toUpperCase(), year: Number(form.year) }) as any
       if (data.token) {
         setAuth(data.user, data.token)
         router.push('/dashboard')
@@ -53,11 +54,30 @@ export default function SignupPage() {
           <input name="email" type="email" placeholder="Email *" value={form.email} onChange={handleChange} className={inputCls} />
         </div>
         <input name="password" type="password" placeholder="Password *" value={form.password} onChange={handleChange} className={inputCls} />
-        <input name="college" placeholder="College" value={form.college} onChange={handleChange} className={inputCls} />
+        <select name="college" value={form.college} onChange={handleChange} className={inputCls}>
+          <option value="">Select College</option>
+          {COLLEGES.map(g => (
+            <optgroup key={g.group} label={g.group}>
+              {g.options.map(c => <option key={c} value={c}>{c}</option>)}
+            </optgroup>
+          ))}
+        </select>
         <div className="grid grid-cols-3 gap-3">
-          <input name="branch" placeholder="Branch (CS)" value={form.branch} onChange={handleChange} className={inputCls} />
-          <input name="year" placeholder="Year (2)" value={form.year} onChange={handleChange} className={inputCls} />
-          <input name="section" placeholder="Section (A)" value={form.section} onChange={handleChange} className={inputCls} />
+          <select name="branch" value={form.branch} onChange={handleChange} className={inputCls}>
+            <option value="">Branch</option>
+            {BRANCHES.map(b => <option key={b} value={b}>{b}</option>)}
+          </select>
+          <select name="year" value={form.year} onChange={handleChange} className={inputCls}>
+            <option value="">Year</option>
+            {YEARS.map(y => <option key={y} value={y}>Year {y}</option>)}
+          </select>
+          <input
+            name="section"
+            placeholder="Section (A)"
+            value={form.section}
+            onChange={e => setForm(prev => ({ ...prev, section: e.target.value.toUpperCase() }))}
+            className={inputCls}
+          />
         </div>
 
         {msg && (
