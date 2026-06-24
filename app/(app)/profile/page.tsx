@@ -20,6 +20,8 @@ export default function ProfilePage() {
   const [form, setForm] = useState<Profile>({ name: '', email: '', college: '', branch: '', year: '', semester: '', section: '', isCR: false, phone: '', collegeEmail: '', collegeEmailVerified: false })
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
+  const [loaded, setLoaded] = useState(false)
+  const [loadError, setLoadError] = useState(false)
   const [notif, setNotif] = useState<NotifSettings>({ deadlineNotifications: true, studyPackNotifications: true, attendanceNotifications: true })
   const [collegeOtpSent, setCollegeOtpSent] = useState(false)
   const [collegeOtp, setCollegeOtp] = useState('')
@@ -35,31 +37,52 @@ export default function ProfilePage() {
       })
     }).catch(() => {})
     getUserMe().then(p => {
-      if (!p) return
-      const profile = p as any
+      const profile = (p ?? {}) as any
+      // Defaults are BLANK (never 'Alex Kumar'/'Computer Science'/etc.) so an
+      // unset profile shows placeholders, and a non-destructive save (below)
+      // can't overwrite real data with guessed defaults.
       setForm({
-        name: profile.name ?? user?.name ?? '',
+        name: profile.name ?? '',
         email: profile.email ?? user?.email ?? '',
         college: profile.college ?? '',
-        branch: profile.branch ?? 'Computer Science',
-        year: profile.year != null ? String(profile.year) : '2',
-        semester: profile.semester != null ? String(profile.semester) : '1',
-        section: profile.section ?? 'A',
+        branch: profile.branch ?? '',
+        year: profile.year != null ? String(profile.year) : '',
+        semester: profile.semester != null ? String(profile.semester) : '',
+        section: profile.section ?? '',
         isCR: profile.isCR ?? false,
         phone: profile.phone ?? '',
         collegeEmail: profile.collegeEmail ?? '',
         collegeEmailVerified: profile.collegeEmailVerified ?? false,
       })
+      setLoaded(true)
+    }).catch(() => {
+      // Could not load the profile — do NOT present an empty editable form that
+      // a Save would wipe. Show an error and keep Save disabled.
+      setLoadError(true)
     })
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleSave = async () => {
+    // Never save before the profile has loaded — otherwise a blank form would
+    // overwrite real data.
+    if (!loaded) return
     setSaving(true)
     try {
-      await updateUserProfile({ ...form, section: form.section.trim().toUpperCase(), year: form.year ? Number(form.year) : undefined, semester: form.semester ? Number(form.semester) : undefined })
+      // Non-destructive: only send fields the user actually has a value for, so
+      // an empty field can never wipe existing server data.
+      const payload: Record<string, unknown> = {}
+      if (form.name.trim()) payload.name = form.name.trim()
+      if (form.college.trim()) payload.college = form.college.trim()
+      if (form.branch.trim()) payload.branch = form.branch.trim()
+      if (form.phone.trim()) payload.phone = form.phone.trim()
+      if (form.section.trim()) payload.section = form.section.trim().toUpperCase()
+      if (form.year) payload.year = Number(form.year)
+      if (form.semester) payload.semester = Number(form.semester)
+
+      await updateUserProfile(payload as Parameters<typeof updateUserProfile>[0])
       setAuth({
         ...(user ?? {}),
-        name: form.name,
+        ...(form.name.trim() ? { name: form.name.trim() } : {}),
         college: form.college,
         branch: form.branch,
         year: form.year ? Number(form.year) : undefined,
@@ -168,6 +191,7 @@ export default function ProfilePage() {
               <label className="block text-[10px] uppercase tracking-widest text-[#6b7280] mb-1">Year</label>
               <select value={form.year} onChange={e => setForm(p => ({ ...p, year: e.target.value }))}
                 className="w-full rounded-lg border border-white/[0.07] bg-[#0a0a0f] px-3 py-2 text-xs text-white outline-none focus:border-[#00e5ff]/40">
+                <option value="">Year</option>
                 {YEARS.map(y => <option key={y} value={y}>Year {y}</option>)}
               </select>
             </div>
@@ -175,6 +199,7 @@ export default function ProfilePage() {
               <label className="block text-[10px] uppercase tracking-widest text-[#6b7280] mb-1">Semester</label>
               <select value={form.semester} onChange={e => setForm(p => ({ ...p, semester: e.target.value }))}
                 className="w-full rounded-lg border border-white/[0.07] bg-[#0a0a0f] px-3 py-2 text-xs text-white outline-none focus:border-[#00e5ff]/40">
+                <option value="">Semester</option>
                 {SEMESTERS.map(s => <option key={s} value={s}>Semester {s}</option>)}
               </select>
             </div>
@@ -193,13 +218,14 @@ export default function ProfilePage() {
 
           <button
             onClick={handleSave}
-            disabled={saving}
+            disabled={saving || !loaded}
             className="mt-4 flex items-center gap-2 rounded-lg bg-[#00e5ff] px-6 py-2.5 text-[11px] font-black uppercase tracking-widest text-black transition-opacity hover:opacity-90 disabled:opacity-50"
           >
             <Save size={13} />
-            {saving ? 'Saving…' : saved ? 'Saved!' : 'Save Profile'}
+            {saving ? 'Saving…' : saved ? 'Saved!' : !loaded ? 'Loading…' : 'Save Profile'}
           </button>
           {saved && <p className="mt-2 text-xs text-[#22c55e]">Profile updated successfully</p>}
+          {loadError && <p className="mt-2 text-xs text-[#ef4444]">Couldn&apos;t load your profile. Refresh the page before editing — saving now is disabled to avoid overwriting your data.</p>}
         </div>
 
         {/* Side cards */}
