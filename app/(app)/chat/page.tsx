@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useRef, useState } from 'react'
-import { getChatRooms, getChatMessages, sendChatMessage as _sendChat } from '@/lib/api'
+import { getChatRooms, getChatMessages, getSectionRoom } from '@/lib/api'
 import { useAuthStore } from '@/lib/store/authStore'
 import { MessageSquare, Users, BookOpen, Send, Plus, Circle } from 'lucide-react'
 
@@ -10,7 +10,7 @@ interface ChatMessage {
   type?: 'text' | 'file' | 'ai_response'; status?: string; createdAt: string
 }
 interface Room {
-  _id: string; name?: string; type: 'direct' | 'group' | 'study_group'
+  _id: string; name?: string; type: 'direct' | 'group' | 'study_group' | 'study'
   participants: string[]; lastMessage?: { content: string; createdAt: string }
   unreadCount?: number; presence?: Record<string, boolean>
 }
@@ -42,13 +42,31 @@ export default function ChatPage() {
   // Extract current user id from token
   const currentUserId = useRef('')
   useEffect(() => {
-    if (token) {
+    if (!token) return
+    try {
+      const payload = JSON.parse(atob(token.split('.')[1]))
+      currentUserId.current = payload.userId || payload.id || payload.sub || 'mock-user-1'
+    } catch { currentUserId.current = 'mock-user-1' }
+
+    ;(async () => {
       try {
-        const payload = JSON.parse(atob(token.split('.')[1]))
-        currentUserId.current = payload.userId || payload.id || payload.sub || 'mock-user-1'
-      } catch { currentUserId.current = 'mock-user-1' }
-    }
-    getChatRooms().then(r => { setRooms(r as Room[]); }).catch(() => {}).finally(() => setLoading(false))
+        // Ensure the user's section group chat exists and they're a member.
+        const section = (await getSectionRoom().catch(() => null)) as Room | null
+        const list = (await getChatRooms().catch(() => [])) as Room[]
+        const loaded = Array.isArray(list) ? list : []
+        setRooms(loaded)
+
+        // Auto-open the section room (or the first available room).
+        const pick = (section && loaded.find(r => r._id === section._id)) || section || loaded[0]
+        if (pick) {
+          setActiveRoom(pick)
+          const msgs = await getChatMessages(pick._id).catch(() => [])
+          setMessages(Array.isArray(msgs) ? msgs : ((msgs as { messages?: ChatMessage[] })?.messages ?? []))
+        }
+      } finally {
+        setLoading(false)
+      }
+    })()
   }, [token])
 
   // Open WebSocket when activeRoom changes
@@ -57,7 +75,9 @@ export default function ChatPage() {
 
     wsRef.current?.close()
 
-    const wsBase = process.env.NEXT_PUBLIC_CHAT_WS_URL || 'ws://localhost:4000/api/chat/ws'
+    const wsBase =
+      process.env.NEXT_PUBLIC_CHAT_WS_URL ||
+      `${(process.env.NEXT_PUBLIC_GATEWAY_URL || 'http://localhost:4000').replace(/^http/, 'ws')}/api/chat/ws`
     const ws = new WebSocket(`${wsBase}?token=${token}`)
     wsRef.current = ws
 
@@ -206,7 +226,7 @@ export default function ChatPage() {
               <p className="text-sm font-bold text-white">{activeRoom.name}</p>
               <p className="text-[10px] text-[#6b7280]">
                 {activeRoom.participants.length} members ·
-                {activeRoom.type === 'study_group' ? ' @synapto enabled' : ` ${activeRoom.type.replace('_', ' ')}`}
+                {(activeRoom.type === 'study_group' || activeRoom.type === 'study') ? ' section group · @synapto enabled' : ` ${activeRoom.type.replace('_', ' ')}`}
               </p>
             </div>
             {activeRoom.presence && (
@@ -261,7 +281,7 @@ export default function ChatPage() {
                 value={input}
                 onChange={e => setInput(e.target.value)}
                 onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend() } }}
-                placeholder={activeRoom.type === 'study_group' ? 'Message or @synapto to ask AI…' : 'Type a message…'}
+                placeholder={(activeRoom.type === 'study_group' || activeRoom.type === 'study') ? 'Message your section or @synapto to ask AI…' : 'Type a message…'}
                 className="flex-1 rounded-xl border border-white/[0.07] bg-[#111118] px-4 py-2.5 text-xs text-white placeholder:text-[#6b7280] outline-none focus:border-[#00e5ff]/40"
               />
               <button
