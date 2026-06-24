@@ -75,9 +75,22 @@ export default function ChatPage() {
 
     wsRef.current?.close()
 
-    const wsBase =
-      process.env.NEXT_PUBLIC_CHAT_WS_URL ||
-      `${(process.env.NEXT_PUBLIC_GATEWAY_URL || 'http://localhost:4000').replace(/^http/, 'ws')}/api/chat/ws`
+    const wsBase = (() => {
+      const isHttps = typeof window !== 'undefined' && window.location.protocol === 'https:'
+      let base =
+        process.env.NEXT_PUBLIC_CHAT_WS_URL ||
+        (process.env.NEXT_PUBLIC_GATEWAY_URL
+          ? process.env.NEXT_PUBLIC_GATEWAY_URL.replace(/^http/, 'ws') + '/api/chat/ws'
+          : '')
+      // On a deployed (https) site, never point at localhost or insecure ws://
+      // (browsers block mixed content). Fall back to the production backend.
+      if (isHttps && (!base || base.includes('localhost') || base.startsWith('ws://'))) {
+        base = 'wss://synapto.foo/api/chat/ws'
+      }
+      // Local dev default.
+      if (!base) base = 'ws://localhost:4000/api/chat/ws'
+      return base
+    })()
     const ws = new WebSocket(`${wsBase}?token=${token}`)
     wsRef.current = ws
 
