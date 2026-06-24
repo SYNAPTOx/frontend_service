@@ -36,6 +36,7 @@ export const confirmCollegeEmailOtp = (otp: string) =>
 
 export const updateCodingProfiles = (data: {
   github?: string; linkedin?: string; leetcode?: string; codeforces?: string; hackerrank?: string
+  custom?: { label: string; url: string }[]
 }) => USE_MOCK ? Promise.resolve() : http.put('/api/user/profile', { codingProfiles: data })
 
 export const uploadIdCardImage = (file: File, side: 'front' | 'back') => {

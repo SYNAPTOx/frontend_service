@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
 import { getFiles, uploadFile, deleteFile, getNotes, getSubjects, getTimetable } from '@/lib/api'
-import { Upload, Cloud, FileText, Trash2, ExternalLink, Clock, CheckCircle, AlertCircle, Loader2, FolderOpen } from 'lucide-react'
+import { Cloud, FileText, Trash2, ExternalLink, Clock, CheckCircle, AlertCircle, Loader2, FolderOpen } from 'lucide-react'
 
 interface StudyFile {
   _id: string
@@ -303,20 +303,6 @@ export default function StudyPage() {
               <span>{totalSize.toFixed(1)} MB</span>
               <span>100 MB</span>
             </div>
-          </div>
-
-          {/* Upgrade card */}
-          <div className="synapto-card p-4 border-[#a855f7]/20">
-            <div className="mb-2 flex items-center gap-2">
-              <div className="h-6 w-6 rounded bg-[#a855f7]/20 flex items-center justify-center">
-                <Upload size={12} className="text-[#a855f7]" />
-              </div>
-              <p className="text-xs font-black text-[#a855f7] uppercase tracking-widest">Synapto Pro</p>
-            </div>
-            <p className="text-[10px] text-[#6b7280] mb-3">Unlimited storage, priority AI processing, video transcription</p>
-            <button className="w-full rounded-lg bg-[#a855f7] py-2 text-[10px] font-black uppercase tracking-widest text-white hover:opacity-90 transition-opacity">
-              Upgrade Now
-            </button>
           </div>
         </div>
       </div>

@@ -2,7 +2,9 @@
 
 import { useEffect, useState } from 'react'
 import { getUserMe, updateCodingProfiles } from '@/lib/api'
-import { GitBranch, Briefcase, Code2, ExternalLink, Copy, Check, Save, Loader2 } from 'lucide-react'
+import { GitBranch, Briefcase, Code2, ExternalLink, Copy, Check, Save, Loader2, Plus, Trash2, Link2 } from 'lucide-react'
+
+interface CustomLink { label: string; url: string }
 
 interface CodingProfiles {
   github: string
@@ -10,6 +12,7 @@ interface CodingProfiles {
   leetcode: string
   codeforces: string
   hackerrank: string
+  custom: CustomLink[]
 }
 
 interface GithubUser {
@@ -80,7 +83,7 @@ function extractUsername(url: string, base: string): string {
 
 export default function CodingProfilesPage() {
   const [profiles, setProfiles] = useState<CodingProfiles>({
-    github: '', linkedin: '', leetcode: '', codeforces: '', hackerrank: '',
+    github: '', linkedin: '', leetcode: '', codeforces: '', hackerrank: '', custom: [],
   })
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
@@ -90,9 +93,19 @@ export default function CodingProfilesPage() {
 
   useEffect(() => {
     getUserMe().then((u: any) => {
-      if (u?.codingProfiles) setProfiles({ ...profiles, ...u.codingProfiles })
+      if (u?.codingProfiles) {
+        const cp = u.codingProfiles
+        setProfiles(prev => ({ ...prev, ...cp, custom: Array.isArray(cp.custom) ? cp.custom : [] }))
+      }
     }).catch(() => {})
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
+
+  const addCustom = () =>
+    setProfiles(p => ({ ...p, custom: [...p.custom, { label: '', url: '' }] }))
+  const updateCustom = (i: number, field: keyof CustomLink, value: string) =>
+    setProfiles(p => ({ ...p, custom: p.custom.map((c, idx) => idx === i ? { ...c, [field]: value } : c) }))
+  const removeCustom = (i: number) =>
+    setProfiles(p => ({ ...p, custom: p.custom.filter((_, idx) => idx !== i) }))
 
   // Fetch GitHub preview whenever the github field changes
   useEffect(() => {
@@ -111,7 +124,15 @@ export default function CodingProfilesPage() {
   const handleSave = async () => {
     setSaving(true)
     try {
-      await updateCodingProfiles(profiles)
+      // Drop empty custom rows (both fields blank) before saving.
+      const cleaned = {
+        ...profiles,
+        custom: profiles.custom
+          .map(c => ({ label: c.label.trim(), url: c.url.trim() }))
+          .filter(c => c.label || c.url),
+      }
+      await updateCodingProfiles(cleaned)
+      setProfiles(p => ({ ...p, custom: cleaned.custom }))
       setSaved(true)
       setTimeout(() => setSaved(false), 3000)
     } catch {}
@@ -183,6 +204,76 @@ export default function CodingProfilesPage() {
               </div>
             )
           })}
+
+          {/* Custom links — add any link you want */}
+          <div className="pt-3 border-t border-white/[0.07]">
+            <div className="flex items-center justify-between mb-2">
+              <label className="block text-[10px] uppercase tracking-widest text-[#a855f7]">
+                <Link2 size={10} className="inline mr-1" />
+                Custom Links
+              </label>
+              <button
+                onClick={addCustom}
+                className="flex items-center gap-1 text-[10px] uppercase tracking-widest text-[#00e5ff] hover:opacity-80 transition-opacity"
+              >
+                <Plus size={11} /> Add link
+              </button>
+            </div>
+
+            {profiles.custom.length === 0 && (
+              <p className="text-xs text-[#6b7280]">Add any link — portfolio, blog, Twitter/X, Medium, anything.</p>
+            )}
+
+            <div className="space-y-2">
+              {profiles.custom.map((c, i) => {
+                const hasLink = c.url.trim().length > 0
+                return (
+                  <div key={i} className="flex gap-2">
+                    <input
+                      value={c.label}
+                      onChange={e => updateCustom(i, 'label', e.target.value)}
+                      placeholder="Label"
+                      className="w-1/3 rounded-lg border border-white/[0.07] bg-[#0a0a0f] px-3 py-2 text-xs text-white placeholder:text-[#6b7280] outline-none focus:border-[#00e5ff]/40"
+                    />
+                    <input
+                      type="url"
+                      value={c.url}
+                      onChange={e => updateCustom(i, 'url', e.target.value)}
+                      placeholder="https://…"
+                      className="flex-1 rounded-lg border border-white/[0.07] bg-[#0a0a0f] px-3 py-2 text-xs text-white placeholder:text-[#6b7280] outline-none focus:border-[#00e5ff]/40"
+                    />
+                    {hasLink && (
+                      <>
+                        <button
+                          onClick={() => copyLink(c.url)}
+                          title="Copy link"
+                          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-white/[0.07] text-[#6b7280] hover:text-white transition-colors"
+                        >
+                          {copied === c.url ? <Check size={13} className="text-[#22c55e]" /> : <Copy size={13} />}
+                        </button>
+                        <a
+                          href={c.url.startsWith('http') ? c.url : `https://${c.url}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          title="Open link"
+                          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-white/[0.07] text-[#6b7280] hover:text-white transition-colors"
+                        >
+                          <ExternalLink size={13} />
+                        </a>
+                      </>
+                    )}
+                    <button
+                      onClick={() => removeCustom(i)}
+                      title="Remove link"
+                      className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-white/[0.07] text-[#6b7280] hover:text-[#ef4444] transition-colors"
+                    >
+                      <Trash2 size={13} />
+                    </button>
+                  </div>
+                )
+              })}
+            </div>
+          </div>
 
           <button
             onClick={handleSave}
@@ -263,7 +354,21 @@ export default function CodingProfilesPage() {
                   }
                 </button>
               ))}
-              {!PLATFORMS.some(p => profiles[p.key].trim()) && (
+              {profiles.custom.filter(c => c.url.trim()).map((c, i) => (
+                <button
+                  key={`custom-${i}`}
+                  onClick={() => copyLink(c.url)}
+                  className="flex w-full items-center gap-2 rounded-lg border border-white/[0.07] px-3 py-2 text-left transition-colors hover:bg-white/5"
+                >
+                  <Link2 size={12} className="text-[#a855f7]" />
+                  <span className="flex-1 text-xs text-white truncate">{c.label || c.url}</span>
+                  {copied === c.url
+                    ? <Check size={11} className="text-[#22c55e] shrink-0" />
+                    : <Copy size={11} className="text-[#6b7280] shrink-0" />
+                  }
+                </button>
+              ))}
+              {!PLATFORMS.some(p => profiles[p.key].trim()) && !profiles.custom.some(c => c.url.trim()) && (
                 <p className="text-xs text-[#6b7280]">No profiles saved yet.</p>
               )}
             </div>
