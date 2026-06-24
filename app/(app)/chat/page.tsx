@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { getChatRooms, getChatMessages, getSectionRoom } from '@/lib/api'
 import { useAuthStore } from '@/lib/store/authStore'
-import { MessageSquare, Users, BookOpen, Send, Plus, Circle } from 'lucide-react'
+import { MessageSquare, Users, BookOpen, Send, Plus, Circle, ChevronLeft } from 'lucide-react'
 
 interface ChatMessage {
   _id?: string; senderId: string; senderName?: string; content: string
@@ -171,8 +171,8 @@ export default function ChatPage() {
   return (
     <div className="flex h-full bg-[#0a0a0f]">
 
-      {/* Rooms sidebar */}
-      <div className="w-64 shrink-0 flex flex-col border-r border-white/[0.07]">
+      {/* Rooms sidebar — full width on mobile, hidden once a room is open */}
+      <div className={`w-full md:w-64 shrink-0 flex-col border-r border-white/[0.07] ${activeRoom ? 'hidden md:flex' : 'flex'}`}>
         <div className="flex items-center justify-between p-4 border-b border-white/[0.07]">
           <p className="label-upper">Conversations</p>
           <button className="flex h-6 w-6 items-center justify-center rounded text-[#6b7280] hover:text-white transition-colors">
@@ -226,6 +226,13 @@ export default function ChatPage() {
         <div className="flex flex-1 flex-col min-w-0">
           {/* Room header */}
           <div className="flex items-center gap-3 border-b border-white/[0.07] px-4 py-3">
+            <button
+              onClick={() => setActiveRoom(null)}
+              aria-label="Back to conversations"
+              className="md:hidden -ml-1 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-[#6b7280] hover:text-white transition-colors"
+            >
+              <ChevronLeft size={18} />
+            </button>
             {(() => {
               const Icon = roomIcon(activeRoom.type)
               const color = roomColor(activeRoom.type)
@@ -308,7 +315,7 @@ export default function ChatPage() {
           </div>
         </div>
       ) : (
-        <div className="flex flex-1 flex-col items-center justify-center gap-3 text-center">
+        <div className="hidden md:flex flex-1 flex-col items-center justify-center gap-3 text-center">
           <MessageSquare size={32} className="text-[#6b7280]" />
           <p className="text-sm text-white font-medium">Select a conversation</p>
           <p className="text-xs text-[#6b7280]">Choose a room from the sidebar to start chatting</p>

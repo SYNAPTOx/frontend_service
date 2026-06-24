@@ -228,47 +228,52 @@ export default function CodingProfilesPage() {
               {profiles.custom.map((c, i) => {
                 const hasLink = c.url.trim().length > 0
                 return (
-                  <div key={i} className="flex gap-2">
+                  <div key={i} className="rounded-lg border border-white/[0.07] p-2.5 space-y-2">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[9px] uppercase tracking-widest text-[#6b7280]">Link {i + 1}</span>
+                      <button
+                        onClick={() => removeCustom(i)}
+                        title="Remove link"
+                        className="flex h-6 w-6 items-center justify-center rounded text-[#6b7280] hover:text-[#ef4444] transition-colors"
+                      >
+                        <Trash2 size={12} />
+                      </button>
+                    </div>
                     <input
                       value={c.label}
                       onChange={e => updateCustom(i, 'label', e.target.value)}
-                      placeholder="Label"
-                      className="w-1/3 rounded-lg border border-white/[0.07] bg-[#0a0a0f] px-3 py-2 text-xs text-white placeholder:text-[#6b7280] outline-none focus:border-[#00e5ff]/40"
+                      placeholder="Title (e.g. Portfolio, Twitter, Blog)"
+                      className="w-full rounded-lg border border-white/[0.07] bg-[#0a0a0f] px-3 py-2 text-xs text-white placeholder:text-[#6b7280] outline-none focus:border-[#00e5ff]/40"
                     />
-                    <input
-                      type="url"
-                      value={c.url}
-                      onChange={e => updateCustom(i, 'url', e.target.value)}
-                      placeholder="https://…"
-                      className="flex-1 rounded-lg border border-white/[0.07] bg-[#0a0a0f] px-3 py-2 text-xs text-white placeholder:text-[#6b7280] outline-none focus:border-[#00e5ff]/40"
-                    />
-                    {hasLink && (
-                      <>
-                        <button
-                          onClick={() => copyLink(c.url)}
-                          title="Copy link"
-                          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-white/[0.07] text-[#6b7280] hover:text-white transition-colors"
-                        >
-                          {copied === c.url ? <Check size={13} className="text-[#22c55e]" /> : <Copy size={13} />}
-                        </button>
-                        <a
-                          href={c.url.startsWith('http') ? c.url : `https://${c.url}`}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          title="Open link"
-                          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-white/[0.07] text-[#6b7280] hover:text-white transition-colors"
-                        >
-                          <ExternalLink size={13} />
-                        </a>
-                      </>
-                    )}
-                    <button
-                      onClick={() => removeCustom(i)}
-                      title="Remove link"
-                      className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-white/[0.07] text-[#6b7280] hover:text-[#ef4444] transition-colors"
-                    >
-                      <Trash2 size={13} />
-                    </button>
+                    <div className="flex gap-2">
+                      <input
+                        type="url"
+                        value={c.url}
+                        onChange={e => updateCustom(i, 'url', e.target.value)}
+                        placeholder="https://…"
+                        className="flex-1 min-w-0 rounded-lg border border-white/[0.07] bg-[#0a0a0f] px-3 py-2 text-xs text-white placeholder:text-[#6b7280] outline-none focus:border-[#00e5ff]/40"
+                      />
+                      {hasLink && (
+                        <>
+                          <button
+                            onClick={() => copyLink(c.url)}
+                            title="Copy link"
+                            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-white/[0.07] text-[#6b7280] hover:text-white transition-colors"
+                          >
+                            {copied === c.url ? <Check size={13} className="text-[#22c55e]" /> : <Copy size={13} />}
+                          </button>
+                          <a
+                            href={c.url.startsWith('http') ? c.url : `https://${c.url}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            title="Open link"
+                            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-white/[0.07] text-[#6b7280] hover:text-white transition-colors"
+                          >
+                            <ExternalLink size={13} />
+                          </a>
+                        </>
+                      )}
+                    </div>
                   </div>
                 )
               })}
