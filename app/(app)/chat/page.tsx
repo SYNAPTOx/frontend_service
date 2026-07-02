@@ -301,7 +301,7 @@ export default function ChatPage() {
                 value={input}
                 onChange={e => setInput(e.target.value)}
                 onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend() } }}
-                placeholder={(activeRoom.type === 'study_group' || activeRoom.type === 'study') ? 'Message your section or @synapto to ask AI…' : 'Type a message…'}
+                placeholder={(activeRoom.type === 'study_group' || activeRoom.type === 'study') ? 'Message your section here...' : 'Type a message…'}
                 className="flex-1 rounded-xl border border-white/[0.07] bg-[#111118] px-4 py-2.5 text-xs text-white placeholder:text-[#6b7280] outline-none focus:border-[#00e5ff]/40"
               />
               <button
